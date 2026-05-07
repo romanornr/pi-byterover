@@ -34,7 +34,7 @@ export const configDefaults = {
   autoPersist: true,
   manualTools: true,
   readOnly: false,
-  contextTagName: "byterover-context",
+  contextTagName: "memory-context",
   recallPrompt:
     `Recall any relevant context that would help answer the latest user message.\n` +
     `Use the recent conversation only to resolve references and intent.\n` +

@@ -60,7 +60,7 @@ Project configuration takes precedence over global configuration. If no config f
   "autoPersist": true,
   "manualTools": true,
   "readOnly": false,
-  "contextTagName": "byterover-context",
+  "contextTagName": "memory-context",
   "recallPrompt": "Recall any relevant context that would help answer the latest user message.\nUse the recent conversation only to resolve references and intent.\nDo not restate the query in your findings.",
   "persistPrompt": "The following is a conversation between a user and an AI assistant.\nCurate only information with lasting value: facts, decisions, technical details, preferences, or notable outcomes.\nSkip trivial messages such as greetings, acknowledgments (\"ok\", \"thanks\", \"sure\", \"got it\"), one-word replies, anything with no substantive content.",
   "maxRecallTurns": 3,
@@ -81,13 +81,13 @@ Configuration fields:
 - `autoPersist`: Automatically persist useful completed conversation turns after responses. Defaults to `true`.
 - `manualTools`: Register manual ByteRover tools. Defaults to `true`.
 - `readOnly`: Disable all writes to ByteRover while keeping recall/search available. Defaults to `false`. Useful for safely sharing an existing ByteRover workspace such as Hermes memory before allowing Pi to persist into it.
-- `contextTagName`: XML-style tag name used for injected recall context. Defaults to `byterover-context`.
+- `contextTagName`: XML-style tag name used for injected recall context. Defaults to `memory-context`.
 - `recallPrompt`: Instruction text prepended to recent conversation context for automatic recall.
 - `persistPrompt`: Instruction text prepended to completed turns for automatic persistence curation.
 - `maxRecallTurns`: Maximum recent user turns used to resolve automatic recall context. Defaults to `3`.
 - `maxRecallChars`: Maximum recent conversation characters used for automatic recall. Defaults to `4096`.
 
-Numeric timeout and limit values must be positive integers. `brvPath`, `brvCwd`, `recallPrompt`, and `persistPrompt` must be non-empty strings when provided. `contextTagName` must be a simple XML-style tag name such as `byterover-context`.
+Numeric timeout and limit values must be positive integers. `brvPath`, `brvCwd`, `recallPrompt`, and `persistPrompt` must be non-empty strings when provided. `contextTagName` must be a simple XML-style tag name such as `memory-context`.
 
 Persist does not require ByteRover to be ready ahead of time. ByteRover bootstraps automatically when persist is called unless `readOnly` is enabled.
 

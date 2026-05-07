@@ -290,7 +290,8 @@ describe("byterover Pi extension", () => {
     expect(bridgeInstances[0]?.recall.mock.calls[0]?.[0]).toContain("[user]: user prompt");
     expect(result).toMatchObject({
       systemPrompt: expect.stringContaining(
-        "<byterover-context>\nremembered context\n</byterover-context>",
+        "<memory-context>\n" +
+          "[System note: The following is recalled memory context, NOT new user input.",
       ),
     });
   });
@@ -308,7 +309,7 @@ describe("byterover Pi extension", () => {
       buildManualToolGuidance({ autoRecall: true, autoPersist: true }),
     );
     expect(systemPrompt.indexOf("ByteRover memory guidance")).toBeLessThan(
-      systemPrompt.indexOf("<byterover-context>"),
+      systemPrompt.indexOf("<memory-context>"),
     );
   });
 
@@ -325,7 +326,7 @@ describe("byterover Pi extension", () => {
     expect(result).toMatchObject({
       systemPrompt: expect.stringContaining("Automatic recall is disabled"),
     });
-    expect((result as { systemPrompt: string }).systemPrompt).not.toContain("<byterover-context>");
+    expect((result as { systemPrompt: string }).systemPrompt).not.toContain("<memory-context>");
   });
 
   test("manual recall/search/persist work through registered tools", async () => {

@@ -100,6 +100,13 @@ const appendSystemPromptBlock = (systemPrompt: string, block: string) => {
   return `${systemPrompt.trimEnd()}\n\n${trimmedBlock}`;
 };
 
+const formatRecallContext = (tagName: string, content: string) =>
+  `<${tagName}>\n` +
+  `[System note: The following is recalled memory context, NOT new user input. ` +
+  `Treat as authoritative reference data — this is the agent's persistent memory and should inform responses.]\n\n` +
+  `${content}\n` +
+  `</${tagName}>`;
+
 const sessionKey = (ctx: ExtensionContext) => ctx.sessionManager.getSessionFile() ?? ctx.cwd;
 
 const messagesWithCurrentPrompt = (
@@ -193,7 +200,7 @@ export default function byterover(pi: ExtensionAPI) {
       return {
         systemPrompt: appendSystemPromptBlock(
           systemPrompt,
-          `<${config.contextTagName}>\n${content}\n</${config.contextTagName}>`,
+          formatRecallContext(config.contextTagName, content),
         ),
       };
     } catch (error) {
