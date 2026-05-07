@@ -62,7 +62,7 @@ export const buildRecallQuery = ({
 }) =>
   [
     config.recallPrompt.trim(),
-    `Current project / ByteRover cwd:\n${projectCwd}`,
+    `Current project cwd:\n${projectCwd}`,
     `Latest user request:\n${latestPrompt.trim() || "(empty)"}`,
     `Recent conversation:\n\n---\n${formattedMessages}`,
     [
@@ -130,7 +130,7 @@ export const recallBeforeAgentStart = async ({
   try {
     const query = buildRecallQuery({
       config,
-      projectCwd: brvCwd,
+      projectCwd: ctx.cwd,
       latestPrompt: event.prompt,
       formattedMessages,
     });
@@ -142,7 +142,7 @@ export const recallBeforeAgentStart = async ({
     if (!content) return { systemPrompt };
     const quality = evaluateRecallQuality({
       latestPrompt: event.prompt,
-      projectCwd: brvCwd,
+      projectCwd: ctx.cwd,
       formattedMessages,
       content,
     });

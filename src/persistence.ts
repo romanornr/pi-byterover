@@ -109,6 +109,8 @@ export const curateTurn = async ({
   });
 };
 
+const maxCompactFlushMessages = 25;
+
 export const flushBeforeCompact = async ({
   ctx,
   state,
@@ -123,7 +125,7 @@ export const flushBeforeCompact = async ({
   if (state === undefined) return;
 
   const allMessages = extractPiSessionMessages(ctx.sessionManager.getBranch());
-  const messagesForFlush = allMessages.slice(-10);
+  const messagesForFlush = allMessages.slice(-maxCompactFlushMessages);
   const formattedMessages = formatMessages(messagesForFlush);
   if (!formattedMessages) return;
 

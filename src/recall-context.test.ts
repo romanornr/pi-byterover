@@ -11,7 +11,7 @@ describe("recall-context", () => {
       formattedMessages: "[user]: review memory implementation",
     });
 
-    expect(query).toContain("Current project / ByteRover cwd:\n/repo/pi-byterover");
+    expect(query).toContain("Current project cwd:\n/repo/pi-byterover");
     expect(query).toContain("Latest user request:\nreview memory implementation");
     expect(query).toContain("Return only context directly relevant");
     expect(query).toContain("If no directly relevant context exists, return an empty response.");

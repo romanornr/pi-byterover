@@ -296,6 +296,24 @@ describe("byterover Pi extension", () => {
     });
   });
 
+  test("automatic recall scopes queries to the project cwd while using configured brvCwd for ByteRover", async () => {
+    const cwd = await mkdtemp(join(tmpdir(), "pi-byterover-project-cwd-"));
+    const brvCwd = join(cwd, "shared-memory");
+    tempDirs.push(cwd);
+    const { handlers, ctx } = await setup({
+      config: { brvCwd },
+      branch: [messageEntry("u1", "user", "previous project question")],
+    });
+    const beforeAgentStart = getHandler(handlers, "before_agent_start");
+
+    await beforeAgentStart(beforeAgentEvent("base", "user prompt"), ctx);
+
+    const query = bridgeInstances[0]?.recall.mock.calls[0]?.[0] as string;
+    expect(bridgeInstances[0]?.recall.mock.calls[0]?.[1]).toMatchObject({ cwd: brvCwd });
+    expect(query).toContain(`Current project cwd:\n${ctx.cwd}`);
+    expect(query).not.toContain(`Current project cwd:\n${brvCwd}`);
+  });
+
   test("recalled context escapes closing memory tags before prompt injection", async () => {
     const { handlers, ctx } = await setup({
       branch: [messageEntry("u1", "user", "latest question")],
@@ -536,8 +554,8 @@ describe("byterover Pi extension", () => {
     expect(bridge.persist.mock.calls[1]?.[0]).toContain("[user]: new decision");
   });
 
-  test("session_before_compact flushes recent context before compaction", async () => {
-    const branch = Array.from({ length: 12 }, (_, index) =>
+  test("session_before_compact flushes enough recent context to use the character budget", async () => {
+    const branch = Array.from({ length: 27 }, (_, index) =>
       messageEntry(`u${index}`, index % 2 === 0 ? "user" : "assistant", `message ${index}`),
     );
     const { handlers, ctx } = await setup({ branch });
@@ -549,8 +567,8 @@ describe("byterover Pi extension", () => {
     expect(bridgeInstances[0]?.persist).toHaveBeenCalledTimes(1);
     expect(persisted).toContain("[Pre-compaction context]");
     expect(persisted).not.toMatch(/^\[assistant\]: message 1$/mu);
-    expect(persisted).toContain("message 2");
-    expect(persisted).toContain("message 11");
+    expect(persisted).toMatch(/^\[user\]: message 2$/mu);
+    expect(persisted).toContain("message 26");
   });
 
   test("session_before_compact caps large flush payloads", async () => {
