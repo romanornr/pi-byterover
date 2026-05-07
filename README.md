@@ -84,7 +84,7 @@ Configuration fields:
 - `manualTools`: Register manual ByteRover tools. Defaults to `true`.
 - `readOnly`: Disable all writes to ByteRover while keeping recall/search available. Defaults to `false`. Useful for safely sharing an existing ByteRover workspace such as Hermes memory before allowing Pi to persist into it.
 - `contextTagName`: XML-style tag name used for injected recall context. Defaults to `memory-context`.
-- `recallPrompt`: Instruction text prepended to recent conversation context for automatic recall. Automatic recall also includes the active ByteRover working directory, latest user request, and conservative relevance rules so unrelated memories are skipped.
+- `recallPrompt`: Instruction text prepended to recent conversation context for automatic recall. Automatic recall also includes the active ByteRover working directory, latest user request, and conservative relevance rules so unrelated memories are skipped. Returned recall is then checked by a lightweight quality gateway: insufficient recall is suppressed, partial recall is injected with a fallback policy, and sufficient recall is still marked as reference data rather than authority.
 - `persistPrompt`: Instruction text prepended to completed turns for automatic persistence curation.
 - `maxRecallTurns`: Maximum recent user turns used to resolve automatic recall context. Defaults to `3`.
 - `maxRecallChars`: Maximum recent conversation characters used for automatic recall. Defaults to `4096`.
