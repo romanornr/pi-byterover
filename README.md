@@ -65,6 +65,7 @@ Project configuration takes precedence over global configuration. If no config f
   "persistPrompt": "The following is a conversation between a user and an AI assistant.\nCurate only information with lasting value: facts, decisions, technical details, preferences, or notable outcomes.\nSkip trivial messages such as greetings, acknowledgments (\"ok\", \"thanks\", \"sure\", \"got it\"), one-word replies, anything with no substantive content.",
   "maxRecallTurns": 3,
   "maxRecallChars": 4096,
+  "maxRecallContextChars": 8192,
   "maxCompactFlushChars": 8192
 }
 ```
@@ -83,10 +84,11 @@ Configuration fields:
 - `manualTools`: Register manual ByteRover tools. Defaults to `true`.
 - `readOnly`: Disable all writes to ByteRover while keeping recall/search available. Defaults to `false`. Useful for safely sharing an existing ByteRover workspace such as Hermes memory before allowing Pi to persist into it.
 - `contextTagName`: XML-style tag name used for injected recall context. Defaults to `memory-context`.
-- `recallPrompt`: Instruction text prepended to recent conversation context for automatic recall.
+- `recallPrompt`: Instruction text prepended to recent conversation context for automatic recall. Automatic recall also includes the active ByteRover working directory, latest user request, and conservative relevance rules so unrelated memories are skipped.
 - `persistPrompt`: Instruction text prepended to completed turns for automatic persistence curation.
 - `maxRecallTurns`: Maximum recent user turns used to resolve automatic recall context. Defaults to `3`.
 - `maxRecallChars`: Maximum recent conversation characters used for automatic recall. Defaults to `4096`.
+- `maxRecallContextChars`: Maximum recalled context characters injected into the system prompt. Defaults to `8192`.
 - `maxCompactFlushChars`: Maximum formatted conversation characters sent during a pre-compaction flush. Defaults to `8192`.
 
 Numeric timeout and limit values must be positive integers. `brvPath`, `brvCwd`, `recallPrompt`, and `persistPrompt` must be non-empty strings when provided. `contextTagName` must be a simple XML-style tag name such as `memory-context`.
