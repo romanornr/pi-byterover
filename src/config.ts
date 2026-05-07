@@ -45,6 +45,7 @@ export const configDefaults = {
     `Skip trivial messages such as greetings, acknowledgments ("ok", "thanks", "sure", "got it"), one-word replies, anything with no substantive content.`,
   maxRecallTurns: 3,
   maxRecallChars: 4096,
+  maxCompactFlushChars: 8192,
 };
 
 export const maxCuratedTurnCacheSize = 500;
@@ -74,6 +75,7 @@ export const ConfigSchema = z
     persistPrompt: nonEmptyString().default(configDefaults.persistPrompt),
     maxRecallTurns: positiveInteger().default(configDefaults.maxRecallTurns),
     maxRecallChars: positiveInteger().default(configDefaults.maxRecallChars),
+    maxCompactFlushChars: positiveInteger().default(configDefaults.maxCompactFlushChars),
   })
   .optional()
   .default(configDefaults);
