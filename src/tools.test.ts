@@ -51,6 +51,7 @@ const register = (overrides: Partial<MockBridge> = {}) => {
     bridge: bridge as BrvBridge,
     config: ConfigSchema.parse(undefined),
     createBridge,
+    brvCwd: "/repo",
   });
 
   return { pi, tools, bridge, overrideBridge, createBridge };
@@ -143,11 +144,11 @@ describe("registerManualTools", () => {
     );
 
     expect(createBridge).toHaveBeenCalledWith({
-      cwd: "/work",
+      cwd: "/repo",
       recallTimeoutMs: 1234,
     });
     expect(overrideBridge.recall).toHaveBeenCalledWith("auth", {
-      cwd: "/work",
+      cwd: "/repo",
       signal,
     });
     expect(text(result as never)).toBe("**Summary**: facts:\nremembered context");
@@ -180,7 +181,7 @@ describe("registerManualTools", () => {
 
     expect(bridge.ready).toHaveBeenCalledTimes(1);
     expect(bridge.search).toHaveBeenCalledWith("topic", {
-      cwd: "/work",
+      cwd: "/repo",
       limit: 5,
       scope: "docs",
     });
@@ -207,11 +208,11 @@ describe("registerManualTools", () => {
 
     expect(bridge.ready).not.toHaveBeenCalled();
     expect(createBridge).toHaveBeenCalledWith({
-      cwd: "/work",
+      cwd: "/repo",
       persistTimeoutMs: 4321,
     });
     expect(overrideBridge.persist).toHaveBeenCalledWith("durable memory", {
-      cwd: "/work",
+      cwd: "/repo",
       detach: true,
     });
     expect(text(result as never)).toBe("ByteRover persist queued: task-1");

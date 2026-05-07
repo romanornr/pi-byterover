@@ -1,4 +1,4 @@
-import { access, mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import {
   brvGitignore,
@@ -67,7 +67,6 @@ export const normalizeBrvGitignore = (existing: string) => {
 };
 
 export const ensureBrvGitignore = async (cwd: string) => {
-  await access(cwd);
   await mkdir(join(cwd, ".brv"), { recursive: true });
 
   const gitignorePath = join(cwd, ".brv", ".gitignore");

@@ -51,6 +51,7 @@ Project configuration takes precedence over global configuration. If no config f
 {
   "enabled": true,
   "brvPath": "brv",
+  "brvCwd": "~/.pi/agent/memory/byterover",
   "searchTimeoutMs": 30000,
   "recallTimeoutMs": 30000,
   "persistTimeoutMs": 60000,
@@ -58,11 +59,14 @@ Project configuration takes precedence over global configuration. If no config f
   "autoRecall": true,
   "autoPersist": true,
   "manualTools": true,
-  "contextTagName": "byterover-context",
+  "readOnly": false,
+  "contextTagName": "memory-context",
   "recallPrompt": "Recall any relevant context that would help answer the latest user message.\nUse the recent conversation only to resolve references and intent.\nDo not restate the query in your findings.",
   "persistPrompt": "The following is a conversation between a user and an AI assistant.\nCurate only information with lasting value: facts, decisions, technical details, preferences, or notable outcomes.\nSkip trivial messages such as greetings, acknowledgments (\"ok\", \"thanks\", \"sure\", \"got it\"), one-word replies, anything with no substantive content.",
   "maxRecallTurns": 3,
-  "maxRecallChars": 4096
+  "maxRecallChars": 4096,
+  "maxRecallContextChars": 8192,
+  "maxCompactFlushChars": 8192
 }
 ```
 
@@ -70,6 +74,7 @@ Configuration fields:
 
 - `enabled`: Enable or disable the package without removing configuration. Defaults to `true`.
 - `brvPath`: ByteRover CLI executable path. Defaults to `brv`.
+- `brvCwd`: Optional ByteRover working directory. Defaults to the current Pi/project working directory, preserving project-local `.brv` behavior. Set a path such as `~/.pi/agent/memory/byterover` for shared/global memory. Relative paths are resolved from the current Pi/project working directory, and `~` is expanded to the home directory.
 - `searchTimeoutMs`: ByteRover search timeout in milliseconds. Defaults to `30000`.
 - `recallTimeoutMs`: ByteRover recall timeout in milliseconds. Defaults to `30000`.
 - `persistTimeoutMs`: ByteRover persist timeout in milliseconds. Defaults to `60000`.
@@ -77,15 +82,18 @@ Configuration fields:
 - `autoRecall`: Automatically recall and inject ByteRover context before agent responses. Defaults to `true`.
 - `autoPersist`: Automatically persist useful completed conversation turns after responses. Defaults to `true`.
 - `manualTools`: Register manual ByteRover tools. Defaults to `true`.
-- `contextTagName`: XML-style tag name used for injected recall context. Defaults to `byterover-context`.
-- `recallPrompt`: Instruction text prepended to recent conversation context for automatic recall.
+- `readOnly`: Disable all writes to ByteRover while keeping recall/search available. Defaults to `false`. Useful for safely sharing an existing ByteRover workspace such as Hermes memory before allowing Pi to persist into it.
+- `contextTagName`: XML-style tag name used for injected recall context. Defaults to `memory-context`.
+- `recallPrompt`: Instruction text prepended to recent conversation context for automatic recall. Automatic recall also includes the active ByteRover working directory, latest user request, and conservative relevance rules so unrelated memories are skipped. Returned recall is then checked by a lightweight quality gateway: insufficient recall is suppressed, partial recall is injected with a fallback policy, and sufficient recall is still marked as reference data rather than authority.
 - `persistPrompt`: Instruction text prepended to completed turns for automatic persistence curation.
 - `maxRecallTurns`: Maximum recent user turns used to resolve automatic recall context. Defaults to `3`.
 - `maxRecallChars`: Maximum recent conversation characters used for automatic recall. Defaults to `4096`.
+- `maxRecallContextChars`: Maximum recalled context characters injected into the system prompt. Defaults to `8192`.
+- `maxCompactFlushChars`: Maximum formatted conversation characters sent during a pre-compaction flush. Defaults to `8192`.
 
-Numeric timeout and limit values must be positive integers. `brvPath`, `recallPrompt`, and `persistPrompt` must be non-empty strings. `contextTagName` must be a simple XML-style tag name such as `byterover-context`.
+Numeric timeout and limit values must be positive integers. `brvPath`, `brvCwd`, `recallPrompt`, and `persistPrompt` must be non-empty strings when provided. `contextTagName` must be a simple XML-style tag name such as `memory-context`.
 
-Persist does not require ByteRover to be ready ahead of time. ByteRover bootstraps automatically when persist is called.
+Persist does not require ByteRover to be ready ahead of time. ByteRover bootstraps automatically when persist is called unless `readOnly` is enabled.
 
 ## Manual Tools
 
@@ -96,6 +104,8 @@ When `manualTools` is enabled, Pi agents can use these ByteRover tools:
 - `brv_persist`: Persist raw memory text directly into ByteRover. Use it when a durable fact, decision, preference, or technical detail should be saved immediately instead of waiting for automatic turn persistence. Defaults to fire-and-forget mode and accepts optional `timeoutMs` for long-running writes.
 
 With `autoRecall` and `autoPersist` enabled, routine memory behavior is automatic. Manual tools are best for explicit lookups, source searches, or immediate saves.
+
+Before Pi compacts a session, `pi-byterover` flushes recent conversation context to ByteRover with a `[Pre-compaction context]` label so useful details are not lost during summarization.
 
 ## Development
 

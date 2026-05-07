@@ -33,7 +33,8 @@ export const configDefaults = {
   autoRecall: true,
   autoPersist: true,
   manualTools: true,
-  contextTagName: "byterover-context",
+  readOnly: false,
+  contextTagName: "memory-context",
   recallPrompt:
     `Recall any relevant context that would help answer the latest user message.\n` +
     `Use the recent conversation only to resolve references and intent.\n` +
@@ -44,6 +45,8 @@ export const configDefaults = {
     `Skip trivial messages such as greetings, acknowledgments ("ok", "thanks", "sure", "got it"), one-word replies, anything with no substantive content.`,
   maxRecallTurns: 3,
   maxRecallChars: 4096,
+  maxRecallContextChars: 8192,
+  maxCompactFlushChars: 8192,
 };
 
 export const maxCuratedTurnCacheSize = 500;
@@ -56,6 +59,7 @@ export const ConfigSchema = z
     enabled: z.boolean().default(configDefaults.enabled),
     // BrvBridge options
     brvPath: nonEmptyString().optional().default(configDefaults.brvPath),
+    brvCwd: nonEmptyString().optional(),
     searchTimeoutMs: positiveInteger().default(configDefaults.searchTimeoutMs),
     recallTimeoutMs: positiveInteger().default(configDefaults.recallTimeoutMs),
     persistTimeoutMs: positiveInteger().default(configDefaults.persistTimeoutMs),
@@ -64,6 +68,7 @@ export const ConfigSchema = z
     autoRecall: z.boolean().default(configDefaults.autoRecall),
     autoPersist: z.boolean().default(configDefaults.autoPersist),
     manualTools: z.boolean().default(configDefaults.manualTools),
+    readOnly: z.boolean().default(configDefaults.readOnly),
     contextTagName: nonEmptyString()
       .regex(/^[A-Za-z][A-Za-z0-9._-]*$/u)
       .default(configDefaults.contextTagName),
@@ -71,6 +76,8 @@ export const ConfigSchema = z
     persistPrompt: nonEmptyString().default(configDefaults.persistPrompt),
     maxRecallTurns: positiveInteger().default(configDefaults.maxRecallTurns),
     maxRecallChars: positiveInteger().default(configDefaults.maxRecallChars),
+    maxRecallContextChars: positiveInteger().default(configDefaults.maxRecallContextChars),
+    maxCompactFlushChars: positiveInteger().default(configDefaults.maxCompactFlushChars),
   })
   .optional()
   .default(configDefaults);

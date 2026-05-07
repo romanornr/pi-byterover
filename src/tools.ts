@@ -18,6 +18,7 @@ export type RegisterManualToolsInput = {
   bridge: BrvBridge;
   config: Config;
   createBridge: (override?: BridgeOverride) => BrvBridge;
+  brvCwd: string;
 };
 
 const RecallParameters = Type.Object(
@@ -131,6 +132,7 @@ export const registerManualTools = ({
   bridge,
   config,
   createBridge,
+  brvCwd,
 }: RegisterManualToolsInput) => {
   if (!config.manualTools) return;
 
@@ -139,7 +141,7 @@ export const registerManualTools = ({
     label: "ByteRover Recall",
     description: "Recall relevant context from ByteRover memory for a raw query.",
     parameters: RecallParameters,
-    execute: async (_toolCallId, params: RecallParameters, signal, _onUpdate, ctx) => {
+    execute: async (_toolCallId, params: RecallParameters, signal, _onUpdate, _ctx) => {
       const query = params.query.trim();
 
       try {
@@ -148,9 +150,9 @@ export const registerManualTools = ({
         const recallBridge =
           params.timeoutMs === undefined
             ? bridge
-            : createBridge({ cwd: ctx.cwd, recallTimeoutMs: params.timeoutMs });
+            : createBridge({ cwd: brvCwd, recallTimeoutMs: params.timeoutMs });
         const brvResult = await recallBridge.recall(query, {
-          cwd: ctx.cwd,
+          cwd: brvCwd,
           ...(signal === undefined ? {} : { signal }),
         });
         const content = stripEchoedRecallQuery(brvResult.content, query);
@@ -166,21 +168,21 @@ export const registerManualTools = ({
     label: "ByteRover Search",
     description: "Search ByteRover memory for ranked file-level context results.",
     parameters: SearchParameters,
-    execute: async (_toolCallId, params: SearchParameters, _signal, _onUpdate, ctx) => {
+    execute: async (_toolCallId, params: SearchParameters, _signal, _onUpdate, _ctx) => {
       const query = params.query.trim();
 
       try {
         if (!(await bridge.ready())) return textResult("ByteRover bridge is not ready.");
 
         const searchOptions = {
-          cwd: ctx.cwd,
+          cwd: brvCwd,
           ...(params.limit === undefined ? {} : { limit: params.limit }),
           ...(params.scope === undefined ? {} : { scope: params.scope.trim() }),
         };
         const searchBridge =
           params.timeoutMs === undefined
             ? bridge
-            : createBridge({ cwd: ctx.cwd, searchTimeoutMs: params.timeoutMs });
+            : createBridge({ cwd: brvCwd, searchTimeoutMs: params.timeoutMs });
         const brvResult = await searchBridge.search(query, searchOptions);
         return textResult(
           formatSearchResults(brvResult.results, brvResult.totalFound, brvResult.message),
@@ -196,19 +198,21 @@ export const registerManualTools = ({
     label: "ByteRover Persist",
     description: "Persist raw memory text into ByteRover without automatic curation wrapping.",
     parameters: PersistParameters,
-    execute: async (_toolCallId, params: PersistParameters, _signal, _onUpdate, ctx) => {
+    execute: async (_toolCallId, params: PersistParameters, _signal, _onUpdate, _ctx) => {
       const memory = params.context.trim();
 
       try {
+        if (config.readOnly) return textResult("ByteRover is in read-only mode; persist skipped.");
+
         const persistBridge =
           params.timeoutMs === undefined
             ? bridge
             : createBridge({
-                cwd: ctx.cwd,
+                cwd: brvCwd,
                 persistTimeoutMs: params.timeoutMs,
               });
         const brvResult = await persistBridge.persist(memory, {
-          cwd: ctx.cwd,
+          cwd: brvCwd,
           detach: true,
         });
         const suffix = brvResult.message ? `: ${brvResult.message}` : "";
