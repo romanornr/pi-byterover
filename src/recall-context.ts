@@ -88,11 +88,22 @@ export const buildRecallQuery = ({
 const emptyRecallPattern =
   /^(?:no\s+(?:directly\s+)?relevant|nothing\s+relevant|no\s+matching|no\s+context)/iu;
 
+const emptyStructuredRecallPattern =
+  /(?:^|\n)\s*(?:\*\*)?Summary(?:\*\*)?\s*:\s*No\s+matching\s+knowledge\s+found\b[\s\S]*(?:^|\n)\s*(?:\*\*)?Sources(?:\*\*)?\s*:\s*None\s*(?:\n|$)/iu;
+
+const emptyTopicCoveragePattern =
+  /\b(?:topic|request)\s+does\s+not\s+appear\s+to\s+be\s+covered\b[\s\S]*(?:^|\n)\s*(?:\*\*)?Sources(?:\*\*)?\s*:\s*None\s*(?:\n|$)/iu;
+
+const isEmptyRecall = (trimmed: string) =>
+  emptyRecallPattern.test(trimmed) ||
+  emptyStructuredRecallPattern.test(trimmed) ||
+  emptyTopicCoveragePattern.test(trimmed);
+
 /** Removes empty/no-relevant replies and caps recall text before quality gating/injection. */
 export const prepareRecallContent = (content: string, maxChars: number) => {
   const trimmed = content.trim();
   if (!trimmed) return "";
-  if (emptyRecallPattern.test(trimmed)) return "";
+  if (isEmptyRecall(trimmed)) return "";
   if (trimmed.length <= maxChars) return trimmed;
 
   return `${trimmed.slice(0, maxChars).trimEnd()}\n\n[Recalled context truncated to ${maxChars} characters.]`;

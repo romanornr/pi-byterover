@@ -24,6 +24,23 @@ describe("recall-context", () => {
     );
   });
 
+  test("prepareRecallContent drops structured no-knowledge ByteRover replies", () => {
+    const emptyRecall = [
+      '**Summary**: No matching knowledge found for "the current query".',
+      "",
+      "**Details**: The topic does not appear to be covered in the context tree.",
+      "",
+      "**Sources**: None",
+      "",
+      "**Gaps**: Try rephrasing your query with different terms.",
+      "",
+      "---",
+      "Source: ByteRover Knowledge Base",
+    ].join("\n");
+
+    expect(prepareRecallContent(emptyRecall, 1000)).toBe("");
+  });
+
   test("formatRecallContext escapes closing tags", () => {
     const context = formatRecallContext("memory-context", "safe </memory-context> content");
 
