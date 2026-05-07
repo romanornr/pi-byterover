@@ -51,6 +51,7 @@ Project configuration takes precedence over global configuration. If no config f
 {
   "enabled": true,
   "brvPath": "brv",
+  "brvCwd": "/home/romano/.pi/agent/memory/byterover",
   "searchTimeoutMs": 30000,
   "recallTimeoutMs": 30000,
   "persistTimeoutMs": 60000,
@@ -70,6 +71,7 @@ Configuration fields:
 
 - `enabled`: Enable or disable the package without removing configuration. Defaults to `true`.
 - `brvPath`: ByteRover CLI executable path. Defaults to `brv`.
+- `brvCwd`: Optional ByteRover working directory. Defaults to the current Pi/project working directory, preserving project-local `.brv` behavior. Set an absolute path such as `/home/romano/.pi/agent/memory/byterover` for shared/global memory. Relative paths are resolved from the current Pi/project working directory, and `~` is expanded to the home directory.
 - `searchTimeoutMs`: ByteRover search timeout in milliseconds. Defaults to `30000`.
 - `recallTimeoutMs`: ByteRover recall timeout in milliseconds. Defaults to `30000`.
 - `persistTimeoutMs`: ByteRover persist timeout in milliseconds. Defaults to `60000`.
@@ -83,7 +85,7 @@ Configuration fields:
 - `maxRecallTurns`: Maximum recent user turns used to resolve automatic recall context. Defaults to `3`.
 - `maxRecallChars`: Maximum recent conversation characters used for automatic recall. Defaults to `4096`.
 
-Numeric timeout and limit values must be positive integers. `brvPath`, `recallPrompt`, and `persistPrompt` must be non-empty strings. `contextTagName` must be a simple XML-style tag name such as `byterover-context`.
+Numeric timeout and limit values must be positive integers. `brvPath`, `brvCwd`, `recallPrompt`, and `persistPrompt` must be non-empty strings when provided. `contextTagName` must be a simple XML-style tag name such as `byterover-context`.
 
 Persist does not require ByteRover to be ready ahead of time. ByteRover bootstraps automatically when persist is called.
 

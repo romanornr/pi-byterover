@@ -1,3 +1,5 @@
+import { homedir } from "node:os";
+import { isAbsolute, resolve } from "node:path";
 import { BrvBridge, type BrvLogger } from "@byterover/brv-bridge";
 import type {
   BeforeAgentStartEvent,
@@ -32,6 +34,7 @@ type BridgeOverride = {
 type RuntimeState = {
   config: ByteroverConfig;
   bridge: BrvBridge;
+  brvCwd: string;
   curatedTurns: LruCache<string, string>;
   inFlightCurations: Map<string, { key: string; promise: Promise<void> }>;
 };
@@ -73,6 +76,13 @@ export const buildManualToolGuidance = (config: { autoRecall: boolean; autoPersi
   }
 
   return guidance.join("\n");
+};
+
+const resolveBrvCwd = (configuredCwd: string | undefined, cwd: string) => {
+  if (configuredCwd === undefined) return cwd;
+  if (configuredCwd === "~") return homedir();
+  if (configuredCwd.startsWith("~/")) return resolve(homedir(), configuredCwd.slice(2));
+  return isAbsolute(configuredCwd) ? configuredCwd : resolve(cwd, configuredCwd);
 };
 
 const appendSystemPromptBlock = (systemPrompt: string, block: string) => {
@@ -140,7 +150,7 @@ export default function byterover(pi: ExtensionAPI) {
     const state = runtime;
     if (state === undefined) return { systemPrompt: event.systemPrompt };
 
-    const { bridge, config } = state;
+    const { bridge, config, brvCwd } = state;
     let systemPrompt = event.systemPrompt;
 
     if (config.manualTools) {
@@ -168,7 +178,7 @@ export default function byterover(pi: ExtensionAPI) {
 
     try {
       const query = `${config.recallPrompt.trim()}\n\nRecent conversation:\n\n---\n${formattedMessages}`;
-      const brvResult = await bridge.recall(query, { cwd: ctx.cwd });
+      const brvResult = await bridge.recall(query, { cwd: brvCwd });
       const content = stripEchoedRecallQuery(brvResult.content, query);
       if (!content) return { systemPrompt };
 
@@ -189,7 +199,7 @@ export default function byterover(pi: ExtensionAPI) {
     const state = runtime;
     if (state === undefined) return;
 
-    const { bridge, config, curatedTurns, inFlightCurations } = state;
+    const { bridge, config, brvCwd, curatedTurns, inFlightCurations } = state;
     if (!config.autoPersist) return;
 
     const messagesInTurn = selectMessagesInTurn(
@@ -218,7 +228,7 @@ export default function byterover(pi: ExtensionAPI) {
       try {
         const result = await bridge.persist(
           `${config.persistPrompt.trim()}\n\nConversation:\n\n---\n${formattedMessages}`,
-          { cwd: ctx.cwd },
+          { cwd: brvCwd },
         );
         if (result.status === "error") {
           notifyBrv(ctx, "error", "Failed to curate conversation turn with ByteRover", config);
@@ -262,8 +272,10 @@ export default function byterover(pi: ExtensionAPI) {
       return;
     }
 
+    const brvCwd = resolveBrvCwd(config.brvCwd, ctx.cwd);
+
     try {
-      await ensureBrvGitignore(ctx.cwd);
+      await ensureBrvGitignore(brvCwd);
     } catch (error) {
       notifyBrv(
         ctx,
@@ -274,11 +286,12 @@ export default function byterover(pi: ExtensionAPI) {
       logBrv("warn", `Failed to bootstrap .brv/.gitignore: ${errorMessage(error)}`);
     }
 
-    const createBridge = createBridgeFactory(config, ctx.cwd);
+    const createBridge = createBridgeFactory(config, brvCwd);
     const bridge = createBridge();
     runtime = {
       config,
       bridge,
+      brvCwd,
       curatedTurns: new LruCache<string, string>(maxCuratedTurnCacheSize),
       inFlightCurations: new Map<string, { key: string; promise: Promise<void> }>(),
     };
@@ -289,6 +302,7 @@ export default function byterover(pi: ExtensionAPI) {
         config,
         bridge,
         createBridge,
+        brvCwd,
         log: logBrv,
         notify: (type: NotifyType, message: string) => notifyBrv(ctx, type, message, config),
       } as Parameters<typeof registerManualTools>[0] & {

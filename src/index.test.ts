@@ -207,6 +207,18 @@ describe("byterover Pi extension", () => {
     expect(bridgeInstances[0]?.config.logger).toBeDefined();
   });
 
+  test("uses configured brvCwd for bridge state and gitignore bootstrap", async () => {
+    const cwd = await mkdtemp(join(tmpdir(), "pi-byterover-cwd-"));
+    const brvCwd = join(cwd, "shared-memory");
+    tempDirs.push(cwd);
+
+    await setup({ config: { brvCwd } });
+
+    expect(bridgeInstances[0]?.config.cwd).toBe(brvCwd);
+    const gitignore = await readFile(join(brvCwd, ".brv", ".gitignore"), "utf8");
+    expect(gitignore).toContain("# BEGIN pi-byterover");
+  });
+
   test("suppresses bridge logger output from process console streams", async () => {
     await setup();
     const logger = bridgeInstances[0]?.config.logger as {
@@ -374,6 +386,28 @@ describe("byterover Pi extension", () => {
       detach: true,
     });
     expect(textResult(persist as never)).toBe("ByteRover persist queued: task-1");
+  });
+
+  test("manual tools use configured brvCwd", async () => {
+    const cwd = await mkdtemp(join(tmpdir(), "pi-byterover-tools-cwd-"));
+    const brvCwd = join(cwd, "shared-memory");
+    tempDirs.push(cwd);
+    const { tools, ctx } = await setup({ config: { brvCwd } });
+    const bridge = bridgeInstances[0]!;
+
+    await tools
+      .get("brv_recall")
+      ?.execute("recall-1", { query: "manual query" }, undefined, undefined, ctx);
+    await tools
+      .get("brv_search")
+      ?.execute("search-1", { query: "manual query" }, undefined, undefined, ctx);
+    await tools
+      .get("brv_persist")
+      ?.execute("persist-1", { context: "manual memory" }, undefined, undefined, ctx);
+
+    expect(bridge.recall.mock.calls[0]?.[1]).toMatchObject({ cwd: brvCwd });
+    expect(bridge.search.mock.calls[0]?.[1]).toMatchObject({ cwd: brvCwd });
+    expect(bridge.persist.mock.calls[0]?.[1]).toMatchObject({ cwd: brvCwd });
   });
 
   test("persist is not blocked by bridge.ready false for manual brv_persist and auto agent_end", async () => {

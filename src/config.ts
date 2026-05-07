@@ -56,6 +56,7 @@ export const ConfigSchema = z
     enabled: z.boolean().default(configDefaults.enabled),
     // BrvBridge options
     brvPath: nonEmptyString().optional().default(configDefaults.brvPath),
+    brvCwd: nonEmptyString().optional(),
     searchTimeoutMs: positiveInteger().default(configDefaults.searchTimeoutMs),
     recallTimeoutMs: positiveInteger().default(configDefaults.recallTimeoutMs),
     persistTimeoutMs: positiveInteger().default(configDefaults.persistTimeoutMs),
