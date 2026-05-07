@@ -135,7 +135,7 @@ export default function byterover(pi: ExtensionAPI) {
       await curateTurn(ctx);
     });
     pi.on("session_before_compact", async (_event, ctx) => {
-      await curateTurn(ctx);
+      await flushBeforeCompact(ctx);
     });
   };
 
@@ -210,20 +210,21 @@ export default function byterover(pi: ExtensionAPI) {
     }
   };
 
-  const curateTurn = async (ctx: ExtensionContext) => {
+  const persistCuratedMessages = async (
+    ctx: ExtensionContext,
+    messages: ReturnType<typeof extractPiSessionMessages>,
+    keyPrefix: string,
+    content: string,
+  ) => {
     const state = runtime;
     if (state === undefined) return;
 
     const { bridge, config, brvCwd, curatedTurns, inFlightCurations } = state;
     if (!config.autoPersist || config.readOnly) return;
+    if (messages.length === 0) return;
 
-    const messagesInTurn = selectMessagesInTurn(
-      extractPiSessionMessages(ctx.sessionManager.getBranch()),
-    );
-    if (messagesInTurn.length === 0) return;
-
-    const key = turnKey(messagesInTurn);
-    const dedupeKey = sessionKey(ctx);
+    const key = `${keyPrefix}:${turnKey(messages)}`;
+    const dedupeKey = `${sessionKey(ctx)}:${keyPrefix}`;
     if (curatedTurns.get(dedupeKey) === key) {
       logBrv("debug", `Skipping duplicate ByteRover curation for ${dedupeKey}`);
       return;
@@ -236,15 +237,9 @@ export default function byterover(pi: ExtensionAPI) {
       return;
     }
 
-    const formattedMessages = formatMessages(messagesInTurn);
-    if (!formattedMessages) return;
-
     const persistCuration = async () => {
       try {
-        const result = await bridge.persist(
-          `${config.persistPrompt.trim()}\n\nConversation:\n\n---\n${formattedMessages}`,
-          { cwd: brvCwd },
-        );
+        const result = await bridge.persist(content, { cwd: brvCwd });
         if (result.status === "error") {
           notifyBrv(ctx, "error", "Failed to curate conversation turn with ByteRover", config);
           logBrv("error", `ByteRover curation failed: ${result.message}`);
@@ -270,6 +265,38 @@ export default function byterover(pi: ExtensionAPI) {
         inFlightCurations.delete(dedupeKey);
       }
     }
+  };
+
+  const curateTurn = async (ctx: ExtensionContext) => {
+    const state = runtime;
+    if (state === undefined) return;
+
+    const messagesInTurn = selectMessagesInTurn(
+      extractPiSessionMessages(ctx.sessionManager.getBranch()),
+    );
+    const formattedMessages = formatMessages(messagesInTurn);
+    if (!formattedMessages) return;
+
+    await persistCuratedMessages(
+      ctx,
+      messagesInTurn,
+      "turn",
+      `${state.config.persistPrompt.trim()}\n\nConversation:\n\n---\n${formattedMessages}`,
+    );
+  };
+
+  const flushBeforeCompact = async (ctx: ExtensionContext) => {
+    const allMessages = extractPiSessionMessages(ctx.sessionManager.getBranch());
+    const messagesForFlush = allMessages.slice(-10);
+    const formattedMessages = formatMessages(messagesForFlush);
+    if (!formattedMessages) return;
+
+    await persistCuratedMessages(
+      ctx,
+      messagesForFlush,
+      "compact",
+      `[Pre-compaction context]\n${formattedMessages}`,
+    );
   };
 
   pi.on("session_start", async (_event, ctx) => {

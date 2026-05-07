@@ -101,6 +101,8 @@ When `manualTools` is enabled, Pi agents can use these ByteRover tools:
 
 With `autoRecall` and `autoPersist` enabled, routine memory behavior is automatic. Manual tools are best for explicit lookups, source searches, or immediate saves.
 
+Before Pi compacts a session, `pi-byterover` flushes recent conversation context to ByteRover with a `[Pre-compaction context]` label so useful details are not lost during summarization.
+
 ## Development
 
 ```bash

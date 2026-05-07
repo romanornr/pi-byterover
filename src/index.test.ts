@@ -486,16 +486,21 @@ describe("byterover Pi extension", () => {
     expect(bridge.persist.mock.calls[1]?.[0]).toContain("[user]: new decision");
   });
 
-  test("session_before_compact curation persists latest turn", async () => {
-    const { handlers, ctx } = await setup({
-      branch: [messageEntry("u1", "user", "compact this memory")],
-    });
+  test("session_before_compact flushes recent context before compaction", async () => {
+    const branch = Array.from({ length: 12 }, (_, index) =>
+      messageEntry(`u${index}`, index % 2 === 0 ? "user" : "assistant", `message ${index}`),
+    );
+    const { handlers, ctx } = await setup({ branch });
     const beforeCompact = getHandler(handlers, "session_before_compact");
 
     await beforeCompact({ type: "session_before_compact" }, ctx);
 
+    const persisted = bridgeInstances[0]?.persist.mock.calls[0]?.[0] as string;
     expect(bridgeInstances[0]?.persist).toHaveBeenCalledTimes(1);
-    expect(bridgeInstances[0]?.persist.mock.calls[0]?.[0]).toContain("[user]: compact this memory");
+    expect(persisted).toContain("[Pre-compaction context]");
+    expect(persisted).not.toMatch(/^\[assistant\]: message 1$/mu);
+    expect(persisted).toContain("message 2");
+    expect(persisted).toContain("message 11");
   });
 
   test("readOnly skips gitignore bootstrap and all persist paths", async () => {
