@@ -45,7 +45,7 @@ Configure `pi-byterover` with either a project config file or a global config fi
 - Project: `.pi/byterover.json`
 - Global: `~/.pi/agent/byterover.json`
 
-Project configuration takes precedence over global configuration. If no config file is present, defaults are used.
+Project configuration takes precedence over global configuration. On first Pi startup with the extension loaded, if neither file exists, `pi-byterover` creates the global config with `brvCwd` set to `~/.pi/agent/memory/byterover` so memory storage is discoverable and shared across projects. Edit or remove that file to change back to project-local ByteRover storage.
 
 ```json
 {

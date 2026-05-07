@@ -31,7 +31,7 @@ export default function byterover(pi: ExtensionAPI) {
   };
 
   pi.on("session_start", async (_event, ctx) => {
-    const configResult = await loadConfig({ cwd: ctx.cwd });
+    const configResult = await loadConfig({ cwd: ctx.cwd, createGlobalDefault: true });
     if (!configResult.success) {
       runtime = undefined;
       notifyBrv(ctx, "error", "Invalid ByteRover configuration");

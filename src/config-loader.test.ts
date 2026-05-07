@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, test } from "vitest";
@@ -35,6 +35,25 @@ describe("loadConfig", () => {
       const result = await loadConfig({ cwd, homeDir });
 
       expect(result).toEqual({ success: true, config: configDefaults });
+    });
+  });
+
+  test("creates a global shared-memory config when requested and no config files exist", async () => {
+    await withTempProjectAndHome(async (cwd, homeDir) => {
+      const globalConfigPath = join(homeDir, ".pi", "agent", "byterover.json");
+
+      const result = await loadConfig({ cwd, homeDir, createGlobalDefault: true });
+
+      expect(result).toMatchObject({
+        success: true,
+        source: globalConfigPath,
+        created: true,
+        config: { brvCwd: "~/.pi/agent/memory/byterover" },
+      });
+      expect(JSON.parse(await readFile(globalConfigPath, "utf8"))).toMatchObject({
+        enabled: true,
+        brvCwd: "~/.pi/agent/memory/byterover",
+      });
     });
   });
 
