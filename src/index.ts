@@ -57,14 +57,22 @@ const notifyBrv = (
 
 const errorMessage = (error: unknown) => (error instanceof Error ? error.message : String(error));
 
-export const buildManualToolGuidance = (config: { autoRecall: boolean; autoPersist: boolean }) => {
+export const buildManualToolGuidance = (config: {
+  autoRecall: boolean;
+  autoPersist: boolean;
+  readOnly?: boolean;
+}) => {
   const guidance = [
     "ByteRover memory guidance:",
     `Automatic recall is ${config.autoRecall ? "enabled" : "disabled"}.`,
-    `Automatic persist is ${config.autoPersist ? "enabled" : "disabled"}.`,
+    `Automatic persist is ${config.autoPersist && !config.readOnly ? "enabled" : "disabled"}.`,
   ];
 
-  if (config.autoRecall && config.autoPersist) {
+  if (config.readOnly) {
+    guidance.push(
+      "ByteRover is in read-only mode. Use recall/search for context, but do not persist new memories.",
+    );
+  } else if (config.autoRecall && config.autoPersist) {
     guidance.push(
       "Rely on automatic recall and automatic persist for routine memory behavior instead of consistently calling the manual tools.",
       "Use `brv_recall`, `brv_search`, or `brv_persist` when you need an extra targeted lookup, immediate durable save, or explicit user-requested memory operation.",
@@ -200,7 +208,7 @@ export default function byterover(pi: ExtensionAPI) {
     if (state === undefined) return;
 
     const { bridge, config, brvCwd, curatedTurns, inFlightCurations } = state;
-    if (!config.autoPersist) return;
+    if (!config.autoPersist || config.readOnly) return;
 
     const messagesInTurn = selectMessagesInTurn(
       extractPiSessionMessages(ctx.sessionManager.getBranch()),
@@ -275,7 +283,7 @@ export default function byterover(pi: ExtensionAPI) {
     const brvCwd = resolveBrvCwd(config.brvCwd, ctx.cwd);
 
     try {
-      await ensureBrvGitignore(brvCwd);
+      if (!config.readOnly) await ensureBrvGitignore(brvCwd);
     } catch (error) {
       notifyBrv(
         ctx,

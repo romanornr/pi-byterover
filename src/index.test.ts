@@ -497,6 +497,35 @@ describe("byterover Pi extension", () => {
     expect(bridgeInstances[0]?.persist.mock.calls[0]?.[0]).toContain("[user]: compact this memory");
   });
 
+  test("readOnly skips gitignore bootstrap and all persist paths", async () => {
+    const cwd = await mkdtemp(join(tmpdir(), "pi-byterover-readonly-"));
+    const brvCwd = join(cwd, "existing-memory");
+    tempDirs.push(cwd);
+    const { handlers, tools, ctx } = await setup({
+      config: { brvCwd, readOnly: true },
+      branch: [messageEntry("u1", "user", "do not write")],
+    });
+    const beforeAgentStart = getHandler(handlers, "before_agent_start");
+    const agentEnd = getHandler(handlers, "agent_end");
+
+    const promptResult = await beforeAgentStart(beforeAgentEvent("base"), ctx);
+    const manualResult = await tools
+      .get("brv_persist")
+      ?.execute("persist-1", { context: "manual memory" }, undefined, undefined, ctx);
+    await agentEnd({ type: "agent_end", messages: [] }, ctx);
+
+    expect((promptResult as { systemPrompt: string }).systemPrompt).toContain(
+      "ByteRover is in read-only mode",
+    );
+    expect(textResult(manualResult as never)).toBe(
+      "ByteRover is in read-only mode; persist skipped.",
+    );
+    expect(bridgeInstances[0]?.persist).not.toHaveBeenCalled();
+    await expect(readFile(join(brvCwd, ".brv", ".gitignore"), "utf8")).rejects.toMatchObject({
+      code: "ENOENT",
+    });
+  });
+
   test("autoPersist disabled skips curation", async () => {
     const { handlers, ctx } = await setup({
       config: { autoPersist: false },

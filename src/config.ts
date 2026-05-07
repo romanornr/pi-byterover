@@ -33,6 +33,7 @@ export const configDefaults = {
   autoRecall: true,
   autoPersist: true,
   manualTools: true,
+  readOnly: false,
   contextTagName: "byterover-context",
   recallPrompt:
     `Recall any relevant context that would help answer the latest user message.\n` +
@@ -65,6 +66,7 @@ export const ConfigSchema = z
     autoRecall: z.boolean().default(configDefaults.autoRecall),
     autoPersist: z.boolean().default(configDefaults.autoPersist),
     manualTools: z.boolean().default(configDefaults.manualTools),
+    readOnly: z.boolean().default(configDefaults.readOnly),
     contextTagName: nonEmptyString()
       .regex(/^[A-Za-z][A-Za-z0-9._-]*$/u)
       .default(configDefaults.contextTagName),

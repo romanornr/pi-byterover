@@ -202,6 +202,8 @@ export const registerManualTools = ({
       const memory = params.context.trim();
 
       try {
+        if (config.readOnly) return textResult("ByteRover is in read-only mode; persist skipped.");
+
         const persistBridge =
           params.timeoutMs === undefined
             ? bridge
