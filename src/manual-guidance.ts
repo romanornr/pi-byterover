@@ -1,3 +1,7 @@
+/**
+ * Builds the system-prompt guidance that tells agents when manual ByteRover tools
+ * are appropriate versus when automatic recall/persist should handle memory.
+ */
 export const buildManualToolGuidance = (config: {
   autoRecall: boolean;
   autoPersist: boolean;

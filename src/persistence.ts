@@ -12,6 +12,10 @@ import type { RuntimeState } from "./runtime.js";
 
 const sessionKey = (ctx: ExtensionContext) => ctx.sessionManager.getSessionFile() ?? ctx.cwd;
 
+/**
+ * Persists a prepared memory payload once per session/key and waits on duplicate
+ * in-flight writes so concurrent lifecycle hooks cannot race the curation cache.
+ */
 export const persistCuratedMessages = async ({
   ctx,
   state,
@@ -79,6 +83,10 @@ export const persistCuratedMessages = async ({
   }
 };
 
+/**
+ * Curates the latest completed user/assistant turn after an agent response.
+ * The durable-memory prompt is applied here; lower-level persistence only writes.
+ */
 export const curateTurn = async ({
   ctx,
   state,
@@ -111,6 +119,10 @@ export const curateTurn = async ({
 
 const maxCompactFlushMessages = 25;
 
+/**
+ * Saves recent branch context before Pi summarizes/compacts it away.
+ * This is intentionally broader than a single turn but still bounded for speed.
+ */
 export const flushBeforeCompact = async ({
   ctx,
   state,

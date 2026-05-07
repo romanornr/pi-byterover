@@ -19,6 +19,10 @@ export type RuntimeState = {
   inFlightCurations: Map<string, { key: string; promise: Promise<void> }>;
 };
 
+/**
+ * Creates ByteRover bridges with shared config and optional per-call overrides.
+ * The default cwd is the configured ByteRover workspace, not necessarily ctx.cwd.
+ */
 export const createBridgeFactory = (
   config: ByteroverConfig,
   defaultCwd: string,
@@ -42,6 +46,10 @@ export const createBridgeFactory = (
     });
 };
 
+/**
+ * Collects all mutable session-runtime state in one object so lifecycle handlers
+ * can stay thin and avoid module-level caches beyond a single Pi session.
+ */
 export const createRuntimeState = ({
   config,
   bridge,

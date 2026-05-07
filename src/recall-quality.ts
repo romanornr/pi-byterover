@@ -88,9 +88,14 @@ const contentContainsAnchor = (content: string, anchor: string) => {
 const hasConflictMarker = (content: string) =>
   /\b(?:conflict(?:ing)?|contradict(?:s|ion|ory)?|stale|outdated|superseded)\b/iu.test(content);
 
+/** Returns false only when the gateway judged recall too weak to show the agent. */
 export const shouldInjectRecallQuality = (quality: Pick<RecallQuality, "status">) =>
   quality.status !== "insufficient";
 
+/**
+ * Deterministic recall gateway: compare returned memory against project/task anchors
+ * before injecting it, so broad personal memories do not pollute the system prompt.
+ */
 export const evaluateRecallQuality = ({
   latestPrompt,
   projectCwd,
