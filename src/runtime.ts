@@ -22,6 +22,7 @@ export type RuntimeState = {
   readOnlyMemorySources: Array<MemorySource>;
   autoRecallMemorySources: Array<MemorySource>;
   recallCache: LruCache<string, RecallCacheEntry>;
+  lastGoodRecallByScope: LruCache<string, RecallCacheEntry>;
   inFlightRecalls: Map<string, Promise<void>>;
   curatedTurns: LruCache<string, string>;
   inFlightCurations: Map<string, { key: string; promise: Promise<void> }>;
@@ -83,6 +84,7 @@ export const createRuntimeState = ({
   readOnlyMemorySources,
   autoRecallMemorySources,
   recallCache: new LruCache<string, RecallCacheEntry>(config.maxRecallCacheSize),
+  lastGoodRecallByScope: new LruCache<string, RecallCacheEntry>(config.maxRecallCacheSize),
   inFlightRecalls: new Map<string, Promise<void>>(),
   curatedTurns: new LruCache<string, string>(maxCuratedTurnCacheSize),
   inFlightCurations: new Map<string, { key: string; promise: Promise<void> }>(),

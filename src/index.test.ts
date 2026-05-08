@@ -307,6 +307,66 @@ describe("byterover Pi extension", () => {
     });
   });
 
+  test("stale-while-revalidate injects last good recall on a different prompt while refreshing", async () => {
+    const { handlers, ctx } = await setup({
+      branch: [messageEntry("u1", "user", "previous pi-byterover memory-manager question")],
+    });
+    const recallBridge = bridgeInstances[1]!;
+    recallBridge.recall
+      .mockResolvedValueOnce({
+        content:
+          "pi-byterover memory-manager stale-while-revalidate context for first detailed prompt",
+      })
+      .mockResolvedValueOnce({
+        content:
+          "pi-byterover memory-manager stale-while-revalidate context for second detailed prompt",
+      });
+    const beforeAgentStart = getHandler(handlers, "before_agent_start");
+
+    const firstResult = await beforeAgentStart(
+      beforeAgentEvent("base", "first detailed prompt"),
+      ctx,
+    );
+    expect((firstResult as { systemPrompt: string }).systemPrompt).not.toContain(
+      "<memory-context>",
+    );
+    await vi.waitFor(() => expect(recallBridge.recall).toHaveBeenCalledTimes(1));
+
+    const secondResult = await beforeAgentStart(
+      beforeAgentEvent("base", "second detailed prompt"),
+      ctx,
+    );
+
+    const systemPrompt = (secondResult as { systemPrompt: string }).systemPrompt;
+    expect(systemPrompt).toContain("<memory-context>");
+    expect(systemPrompt).toContain("first detailed prompt");
+    expect(systemPrompt).not.toContain("second detailed prompt");
+    await vi.waitFor(() => expect(recallBridge.recall).toHaveBeenCalledTimes(2));
+  });
+
+  test("cache-only mode does not inject last good recall for a different prompt", async () => {
+    const { handlers, ctx } = await setup({
+      config: { autoRecallMode: "cache-only" },
+      branch: [messageEntry("u1", "user", "previous pi-byterover memory-manager question")],
+    });
+    const recallBridge = bridgeInstances[1]!;
+    recallBridge.recall.mockResolvedValue({
+      content: "pi-byterover memory-manager cache-only context for first detailed prompt",
+    });
+    const beforeAgentStart = getHandler(handlers, "before_agent_start");
+
+    await beforeAgentStart(beforeAgentEvent("base", "first detailed prompt"), ctx);
+    await vi.waitFor(() => expect(recallBridge.recall).toHaveBeenCalledTimes(1));
+    const secondResult = await beforeAgentStart(
+      beforeAgentEvent("base", "second detailed prompt"),
+      ctx,
+    );
+
+    expect((secondResult as { systemPrompt: string }).systemPrompt).not.toContain(
+      "<memory-context>",
+    );
+  });
+
   test("before_agent_start does not block when automatic recall is slow", async () => {
     const slowRecall = deferred<{ content: string }>();
     const { handlers, ctx } = await setup({

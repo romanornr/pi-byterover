@@ -57,7 +57,7 @@ export const configDefaults = {
   maxRecallCacheSize: 100,
   recallCacheTtlMs: 300_000,
   maxInFlightRecalls: 1,
-  autoRecallMode: "cache-only" as const,
+  autoRecallMode: "stale-while-revalidate" as const,
 };
 
 export const maxCuratedTurnCacheSize = 500;

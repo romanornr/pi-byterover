@@ -22,6 +22,14 @@ export const recallCacheKey = ({
   messages: ReturnType<typeof extractPiSessionMessages>;
 }) => [sessionKey(ctx), ctx.cwd, turnKey(messages), sourceCwds.join("|"), query].join("\n---\n");
 
+export const recallScopeKey = ({
+  ctx,
+  sourceCwds,
+}: {
+  ctx: ExtensionContext;
+  sourceCwds: Array<string>;
+}) => [sessionKey(ctx), ctx.cwd, sourceCwds.join("|")].join("\n---\n");
+
 export const isFreshRecallCacheEntry = (
   entry: RecallCacheEntry | undefined,
   config: Pick<ByteroverConfig, "recallCacheTtlMs">,
