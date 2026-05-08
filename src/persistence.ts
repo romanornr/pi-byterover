@@ -13,8 +13,8 @@ import type { RuntimeState } from "./runtime.js";
 const sessionKey = (ctx: ExtensionContext) => ctx.sessionManager.getSessionFile() ?? ctx.cwd;
 
 /**
- * Persists a prepared memory payload once per session/key and waits on duplicate
- * in-flight writes so concurrent lifecycle hooks cannot race the curation cache.
+ * Queues a prepared memory payload once per session/key without blocking Pi's
+ * lifecycle hook on brv startup or curation latency.
  */
 export const persistCuratedMessages = async ({
   ctx,
@@ -35,7 +35,7 @@ export const persistCuratedMessages = async ({
 }) => {
   if (state === undefined) return;
 
-  const { bridge, config, brvCwd, curatedTurns, inFlightCurations } = state;
+  const { autoPersistBridge, config, brvCwd, curatedTurns, inFlightCurations } = state;
   if (!config.autoPersist || config.readOnly) return;
   if (messages.length === 0) return;
 
@@ -54,7 +54,7 @@ export const persistCuratedMessages = async ({
 
   const persistCuration = async () => {
     try {
-      const result = await bridge.persist(content, { cwd: brvCwd });
+      const result = await autoPersistBridge.persist(content, { cwd: brvCwd });
       if (result.status === "error") {
         notify(ctx, "error", "Failed to curate conversation turn with ByteRover", config);
         log("error", `ByteRover curation failed: ${result.message}`);

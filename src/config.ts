@@ -29,6 +29,8 @@ export const configDefaults = {
   searchTimeoutMs: 30_000,
   recallTimeoutMs: 30_000,
   persistTimeoutMs: 60_000,
+  autoRecallTimeoutMs: 5_000,
+  autoPersistTimeoutMs: 10_000,
   quiet: false,
   autoRecall: true,
   autoPersist: true,
@@ -53,6 +55,9 @@ export const configDefaults = {
   maxCompactFlushChars: 8192,
   minAutoRecallPromptChars: 10,
   maxRecallCacheSize: 100,
+  recallCacheTtlMs: 300_000,
+  maxInFlightRecalls: 1,
+  autoRecallMode: "cache-only" as const,
 };
 
 export const maxCuratedTurnCacheSize = 500;
@@ -69,6 +74,8 @@ export const ConfigSchema = z
     searchTimeoutMs: positiveInteger().default(configDefaults.searchTimeoutMs),
     recallTimeoutMs: positiveInteger().default(configDefaults.recallTimeoutMs),
     persistTimeoutMs: positiveInteger().default(configDefaults.persistTimeoutMs),
+    autoRecallTimeoutMs: positiveInteger().default(configDefaults.autoRecallTimeoutMs),
+    autoPersistTimeoutMs: positiveInteger().default(configDefaults.autoPersistTimeoutMs),
     // Plugin options
     quiet: z.boolean().default(configDefaults.quiet),
     autoRecall: z.boolean().default(configDefaults.autoRecall),
@@ -92,6 +99,11 @@ export const ConfigSchema = z
     maxCompactFlushChars: positiveInteger().default(configDefaults.maxCompactFlushChars),
     minAutoRecallPromptChars: positiveInteger().default(configDefaults.minAutoRecallPromptChars),
     maxRecallCacheSize: positiveInteger().default(configDefaults.maxRecallCacheSize),
+    recallCacheTtlMs: positiveInteger().default(configDefaults.recallCacheTtlMs),
+    maxInFlightRecalls: positiveInteger().default(configDefaults.maxInFlightRecalls),
+    autoRecallMode: z
+      .enum(["cache-only", "stale-while-revalidate", "blocking"])
+      .default(configDefaults.autoRecallMode),
   })
   .optional()
   .default(configDefaults);

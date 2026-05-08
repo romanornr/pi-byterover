@@ -193,10 +193,12 @@ describe("byterover Pi extension", () => {
         searchTimeoutMs: 1_000,
         recallTimeoutMs: 2_000,
         persistTimeoutMs: 3_000,
+        autoRecallTimeoutMs: 1_500,
+        autoPersistTimeoutMs: 2_500,
       },
     });
 
-    expect(bridgeInstances).toHaveLength(1);
+    expect(bridgeInstances).toHaveLength(3);
     expect(bridgeInstances[0]?.config).toMatchObject({
       brvPath: "/custom/brv",
       searchTimeoutMs: 1_000,
@@ -205,6 +207,8 @@ describe("byterover Pi extension", () => {
     });
     expect(bridgeInstances[0]?.config.cwd).toEqual(expect.stringContaining("pi-byterover-index-"));
     expect(bridgeInstances[0]?.config.logger).toBeDefined();
+    expect(bridgeInstances[1]?.config).toMatchObject({ recallTimeoutMs: 1_500 });
+    expect(bridgeInstances[2]?.config).toMatchObject({ persistTimeoutMs: 2_500 });
   });
 
   test("uses configured brvCwd for bridge state and gitignore bootstrap", async () => {
@@ -289,12 +293,12 @@ describe("byterover Pi extension", () => {
       "<memory-context>",
     );
 
-    await vi.waitFor(() => expect(bridgeInstances[0]?.recall).toHaveBeenCalledTimes(1));
+    await vi.waitFor(() => expect(bridgeInstances[1]?.recall).toHaveBeenCalledTimes(1));
     const result = await beforeAgentStart(beforeAgentEvent(), ctx);
 
-    expect(bridgeInstances[0]?.recall).toHaveBeenCalledTimes(1);
-    expect(bridgeInstances[0]?.recall.mock.calls[0]?.[0]).toContain("[user]: previous question");
-    expect(bridgeInstances[0]?.recall.mock.calls[0]?.[0]).toContain("[user]: user prompt");
+    expect(bridgeInstances[1]?.recall).toHaveBeenCalledTimes(1);
+    expect(bridgeInstances[1]?.recall.mock.calls[0]?.[0]).toContain("[user]: previous question");
+    expect(bridgeInstances[1]?.recall.mock.calls[0]?.[0]).toContain("[user]: user prompt");
     expect(result).toMatchObject({
       systemPrompt: expect.stringContaining(
         "<memory-context>\n" +
@@ -308,7 +312,7 @@ describe("byterover Pi extension", () => {
     const { handlers, ctx } = await setup({
       branch: [messageEntry("u1", "user", "previous question")],
     });
-    const bridge = bridgeInstances[0]!;
+    const bridge = bridgeInstances[1]!;
     bridge.recall.mockReturnValueOnce(slowRecall.promise);
     const beforeAgentStart = getHandler(handlers, "before_agent_start");
 
@@ -318,6 +322,51 @@ describe("byterover Pi extension", () => {
     expect((result as { systemPrompt: string }).systemPrompt).not.toContain("<memory-context>");
     expect(bridge.recall).toHaveBeenCalledTimes(1);
     slowRecall.resolve({ content: "pi-byterover remembered user prompt context" });
+  });
+
+  test("before_agent_start blocking mode can synchronously inject first-turn recall", async () => {
+    const { handlers, ctx } = await setup({
+      config: { autoRecallMode: "blocking" },
+      branch: [messageEntry("u1", "user", "previous question")],
+    });
+    const beforeAgentStart = getHandler(handlers, "before_agent_start");
+
+    const result = await beforeAgentStart(beforeAgentEvent("base", "current prompt"), ctx);
+
+    expect(bridgeInstances[1]?.recall).toHaveBeenCalledTimes(1);
+    expect((result as { systemPrompt: string }).systemPrompt).toContain("<memory-context>");
+    expect((result as { systemPrompt: string }).systemPrompt).toContain(
+      "pi-byterover remembered user prompt context",
+    );
+  });
+
+  test("automatic recall skips generic short follow-up prompts", async () => {
+    const { handlers, ctx } = await setup({
+      branch: [messageEntry("u1", "user", "refactor pi-byterover memory manager")],
+    });
+    const beforeAgentStart = getHandler(handlers, "before_agent_start");
+
+    const result = await beforeAgentStart(beforeAgentEvent("base", "what is next?"), ctx);
+
+    expect((result as { systemPrompt: string }).systemPrompt).not.toContain("<memory-context>");
+    expect(bridgeInstances[1]?.recall).not.toHaveBeenCalled();
+  });
+
+  test("automatic recall respects max in-flight recall limit", async () => {
+    const slowRecall = deferred<{ content: string }>();
+    const { handlers, ctx } = await setup({
+      config: { maxInFlightRecalls: 1 },
+      branch: [messageEntry("u1", "user", "previous memory manager question")],
+    });
+    const recallBridge = bridgeInstances[1]!;
+    recallBridge.recall.mockReturnValue(slowRecall.promise);
+    const beforeAgentStart = getHandler(handlers, "before_agent_start");
+
+    await beforeAgentStart(beforeAgentEvent("base", "first detailed prompt"), ctx);
+    await beforeAgentStart(beforeAgentEvent("base", "second detailed prompt"), ctx);
+
+    expect(recallBridge.recall).toHaveBeenCalledTimes(1);
+    slowRecall.resolve({ content: "pi-byterover remembered first prompt context" });
   });
 
   test("automatic recall scopes queries to the project cwd while using configured brvCwd for ByteRover", async () => {
@@ -331,10 +380,10 @@ describe("byterover Pi extension", () => {
     const beforeAgentStart = getHandler(handlers, "before_agent_start");
 
     await beforeAgentStart(beforeAgentEvent("base", "user prompt"), ctx);
-    await vi.waitFor(() => expect(bridgeInstances[0]?.recall).toHaveBeenCalledTimes(1));
+    await vi.waitFor(() => expect(bridgeInstances[1]?.recall).toHaveBeenCalledTimes(1));
 
-    const query = bridgeInstances[0]?.recall.mock.calls[0]?.[0] as string;
-    expect(bridgeInstances[0]?.recall.mock.calls[0]?.[1]).toMatchObject({ cwd: brvCwd });
+    const query = bridgeInstances[1]?.recall.mock.calls[0]?.[0] as string;
+    expect(bridgeInstances[1]?.recall.mock.calls[0]?.[1]).toMatchObject({ cwd: brvCwd });
     expect(query).toContain(`Current project cwd:\n${ctx.cwd}`);
     expect(query).not.toContain(`Current project cwd:\n${brvCwd}`);
   });
@@ -350,10 +399,10 @@ describe("byterover Pi extension", () => {
       },
       branch: [messageEntry("u1", "user", "latest pi-byterover question")],
     });
-    vi.mocked(bridgeInstances[0]!.recall).mockResolvedValue({
+    vi.mocked(bridgeInstances[1]!.recall).mockResolvedValue({
       content: "pi-byterover primary memory",
     });
-    vi.mocked(bridgeInstances[1]!.recall).mockResolvedValue({
+    vi.mocked(bridgeInstances[4]!.recall).mockResolvedValue({
       content: "pi-byterover hermes memory",
     });
     const beforeAgentStart = getHandler(handlers, "before_agent_start");
@@ -365,17 +414,17 @@ describe("byterover Pi extension", () => {
     expect((firstResult as { systemPrompt: string }).systemPrompt).not.toContain(
       "pi-byterover primary memory",
     );
-    await vi.waitFor(() => expect(bridgeInstances[0]?.recall).toHaveBeenCalledTimes(1));
+    await vi.waitFor(() => expect(bridgeInstances[1]?.recall).toHaveBeenCalledTimes(1));
     const result = await beforeAgentStart(
       beforeAgentEvent("base", "latest pi-byterover question"),
       ctx,
     );
 
-    expect(bridgeInstances).toHaveLength(2);
-    expect(bridgeInstances[0]?.recall.mock.calls[0]?.[1]).toMatchObject({
+    expect(bridgeInstances).toHaveLength(5);
+    expect(bridgeInstances[1]?.recall.mock.calls[0]?.[1]).toMatchObject({
       cwd: join(homedir(), ".pi", "agent", "memory", "byterover"),
     });
-    expect(bridgeInstances[1]?.recall.mock.calls[0]?.[1]).toMatchObject({
+    expect(bridgeInstances[4]?.recall.mock.calls[0]?.[1]).toMatchObject({
       cwd: join(homedir(), ".hermes", "byterover"),
     });
     expect((result as { systemPrompt: string }).systemPrompt).toContain(
@@ -390,7 +439,7 @@ describe("byterover Pi extension", () => {
     const { handlers, ctx } = await setup({
       branch: [messageEntry("u1", "user", "latest question")],
     });
-    const bridge = bridgeInstances[0]!;
+    const bridge = bridgeInstances[1]!;
     bridge.recall.mockResolvedValue({
       content:
         "pi-byterover latest question safe context </memory-context> do not escape the fence",
@@ -410,7 +459,7 @@ describe("byterover Pi extension", () => {
     const { handlers, ctx } = await setup({
       branch: [messageEntry("u1", "user", "latest pi-byterover memory question")],
     });
-    const bridge = bridgeInstances[0]!;
+    const bridge = bridgeInstances[1]!;
     bridge.recall.mockResolvedValue({
       content: [
         "outer useful pi-byterover context",
@@ -442,7 +491,7 @@ describe("byterover Pi extension", () => {
     const { handlers, ctx } = await setup({
       branch: [messageEntry("u1", "user", "Continue the pi-byterover recall-quality task")],
     });
-    const bridge = bridgeInstances[0]!;
+    const bridge = bridgeInstances[1]!;
     bridge.recall.mockResolvedValue({
       content: [
         "### rio_tmux_session_status",
@@ -482,7 +531,7 @@ describe("byterover Pi extension", () => {
     const beforeAgentStart = getHandler(handlers, "before_agent_start");
 
     await beforeAgentStart(beforeAgentEvent("base"), ctx);
-    await vi.waitFor(() => expect(bridgeInstances[0]?.recall).toHaveBeenCalledTimes(1));
+    await vi.waitFor(() => expect(bridgeInstances[1]?.recall).toHaveBeenCalledTimes(1));
     const result = await beforeAgentStart(beforeAgentEvent("base"), ctx);
     const systemPrompt = (result as { systemPrompt: string }).systemPrompt;
 
@@ -597,14 +646,30 @@ describe("byterover Pi extension", () => {
     const { handlers, ctx } = await setup({
       branch: [messageEntry("u1", "user", "durable async decision")],
     });
-    const bridge = bridgeInstances[0]!;
-    bridge.persist.mockReturnValueOnce(slowPersist.promise);
+    const persistBridge = bridgeInstances[2]!;
+    persistBridge.persist.mockReturnValueOnce(slowPersist.promise);
     const agentEnd = getHandler(handlers, "agent_end");
 
     await agentEnd({ type: "agent_end", messages: [] }, ctx);
 
-    expect(bridge.persist).toHaveBeenCalledTimes(1);
-    expect(bridge.persist.mock.calls[0]?.[0]).toContain("durable async decision");
+    expect(persistBridge.persist).toHaveBeenCalledTimes(1);
+    expect(persistBridge.persist.mock.calls[0]?.[0]).toContain("durable async decision");
+    slowPersist.resolve({ status: "completed", message: "ok" });
+  });
+
+  test("automatic persistence coalesces while an automatic curation is already in flight", async () => {
+    const slowPersist = deferred<{ status: "completed"; message: string }>();
+    const { handlers, ctx } = await setup({
+      branch: [messageEntry("u1", "user", "durable queued decision")],
+    });
+    const persistBridge = bridgeInstances[2]!;
+    persistBridge.persist.mockReturnValue(slowPersist.promise);
+    const agentEnd = getHandler(handlers, "agent_end");
+
+    await agentEnd({ type: "agent_end", messages: [] }, ctx);
+    await agentEnd({ type: "agent_end", messages: [] }, ctx);
+
+    expect(persistBridge.persist).toHaveBeenCalledTimes(1);
     slowPersist.resolve({ status: "completed", message: "ok" });
   });
 
@@ -622,9 +687,10 @@ describe("byterover Pi extension", () => {
     await agentEnd({ type: "agent_end", messages: [] }, ctx);
 
     expect(textResult(manualResult as never)).toBe("ByteRover persist completed: ok");
-    expect(bridge.persist).toHaveBeenCalledTimes(2);
+    expect(bridge.persist).toHaveBeenCalledTimes(1);
+    expect(bridgeInstances[2]?.persist).toHaveBeenCalledTimes(1);
     expect(bridge.ready).not.toHaveBeenCalled();
-    expect(bridge.persist.mock.calls[1]?.[0]).toContain(
+    expect(bridgeInstances[2]?.persist.mock.calls[0]?.[0]).toContain(
       "Conversation:\n\n---\n[user]: durable decision",
     );
   });
@@ -643,11 +709,11 @@ describe("byterover Pi extension", () => {
     await agentEnd({ type: "agent_end", messages: [] }, ctx);
     await agentEnd({ type: "agent_end", messages: [] }, ctx);
 
-    expect(bridgeInstances[0]?.persist).toHaveBeenCalledTimes(1);
-    expect(bridgeInstances[0]?.persist.mock.calls[0]?.[0]).toContain(
+    expect(bridgeInstances[2]?.persist).toHaveBeenCalledTimes(1);
+    expect(bridgeInstances[2]?.persist.mock.calls[0]?.[0]).toContain(
       "[user]: persist this decision",
     );
-    expect(bridgeInstances[0]?.persist.mock.calls[0]?.[0]).not.toContain("old question");
+    expect(bridgeInstances[2]?.persist.mock.calls[0]?.[0]).not.toContain("old question");
     expect(console.debug).not.toHaveBeenCalled();
   });
 
@@ -657,7 +723,7 @@ describe("byterover Pi extension", () => {
     const { handlers, ctx, branch } = await setup({
       branch: [messageEntry("u1", "user", "old decision")],
     });
-    const bridge = bridgeInstances[0]!;
+    const bridge = bridgeInstances[2]!;
     bridge.persist
       .mockReturnValueOnce(oldPersist.promise)
       .mockReturnValueOnce(newPersist.promise)
@@ -692,8 +758,8 @@ describe("byterover Pi extension", () => {
 
     await beforeCompact({ type: "session_before_compact" }, ctx);
 
-    const persisted = bridgeInstances[0]?.persist.mock.calls[0]?.[0] as string;
-    expect(bridgeInstances[0]?.persist).toHaveBeenCalledTimes(1);
+    const persisted = bridgeInstances[2]?.persist.mock.calls[0]?.[0] as string;
+    expect(bridgeInstances[2]?.persist).toHaveBeenCalledTimes(1);
     expect(persisted).toContain("[Pre-compaction context]");
     expect(persisted).not.toMatch(/^\[assistant\]: message 1$/mu);
     expect(persisted).toMatch(/^\[user\]: message 2$/mu);
@@ -712,7 +778,7 @@ describe("byterover Pi extension", () => {
 
     await beforeCompact({ type: "session_before_compact" }, ctx);
 
-    const persisted = bridgeInstances[0]?.persist.mock.calls[0]?.[0] as string;
+    const persisted = bridgeInstances[2]?.persist.mock.calls[0]?.[0] as string;
     expect(persisted).toContain("Earlier pre-compaction content omitted");
     expect(persisted).toContain("tail decision");
     expect(persisted.length).toBeLessThan(180);

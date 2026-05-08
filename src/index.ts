@@ -3,9 +3,9 @@ import { loadConfig } from "./config-loader.js";
 import { resolveBrvCwd } from "./cwd.js";
 import { ensureBrvGitignore } from "./gitignore.js";
 import { buildManualToolGuidance } from "./manual-guidance.js";
+import { recallBeforeAgentStart } from "./memory-manager.js";
 import { errorMessage, logBrv, notifyBrv, type NotifyType } from "./notifications.js";
 import { flushBeforeCompact, curateTurn } from "./persistence.js";
-import { recallBeforeAgentStart } from "./recall-context.js";
 import { createBridgeFactory, createRuntimeState, type RuntimeState } from "./runtime.js";
 import { registerManualTools } from "./tools.js";
 
@@ -61,13 +61,36 @@ export default function byterover(pi: ExtensionAPI) {
 
     const createBridge = createBridgeFactory(config, brvCwd, logBrv);
     const bridge = createBridge();
+    const autoRecallBridge = createBridge({ recallTimeoutMs: config.autoRecallTimeoutMs });
+    const autoPersistBridge = createBridge({ persistTimeoutMs: config.autoPersistTimeoutMs });
     const readOnlyMemorySources = config.readOnlyMemories.enabled
       ? config.readOnlyMemories.cwds.map((configuredCwd, index) => {
           const cwd = resolveBrvCwd(configuredCwd, ctx.cwd);
           return { label: `Read-only memory ${index + 1}`, cwd, bridge: createBridge({ cwd }) };
         })
       : [];
-    runtime = createRuntimeState({ config, bridge, brvCwd, readOnlyMemorySources });
+    const autoRecallMemorySources = [
+      { label: "Primary memory", cwd: brvCwd, bridge: autoRecallBridge },
+      ...(config.readOnlyMemories.enabled
+        ? config.readOnlyMemories.cwds.map((configuredCwd, index) => {
+            const cwd = resolveBrvCwd(configuredCwd, ctx.cwd);
+            return {
+              label: `Read-only memory ${index + 1}`,
+              cwd,
+              bridge: createBridge({ cwd, recallTimeoutMs: config.autoRecallTimeoutMs }),
+            };
+          })
+        : []),
+    ];
+    runtime = createRuntimeState({
+      config,
+      bridge,
+      autoRecallBridge,
+      autoPersistBridge,
+      brvCwd,
+      readOnlyMemorySources,
+      autoRecallMemorySources,
+    });
 
     if (config.manualTools) {
       registerManualTools({

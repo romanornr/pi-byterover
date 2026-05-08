@@ -4,6 +4,7 @@ import type { ByteroverConfig } from "./config-loader.js";
 import { LruCache } from "./lru-cache.js";
 import type { MemorySource } from "./memory-sources.js";
 import type { LogFunction } from "./notifications.js";
+import type { RecallCacheEntry } from "./recall-cache.js";
 
 export type BridgeOverride = {
   cwd?: string;
@@ -15,9 +16,12 @@ export type BridgeOverride = {
 export type RuntimeState = {
   config: ByteroverConfig;
   bridge: BrvBridge;
+  autoRecallBridge: BrvBridge;
+  autoPersistBridge: BrvBridge;
   brvCwd: string;
   readOnlyMemorySources: Array<MemorySource>;
-  recallCache: LruCache<string, { contextBlock: string }>;
+  autoRecallMemorySources: Array<MemorySource>;
+  recallCache: LruCache<string, RecallCacheEntry>;
   inFlightRecalls: Map<string, Promise<void>>;
   curatedTurns: LruCache<string, string>;
   inFlightCurations: Map<string, { key: string; promise: Promise<void> }>;
@@ -57,19 +61,28 @@ export const createBridgeFactory = (
 export const createRuntimeState = ({
   config,
   bridge,
+  autoRecallBridge,
+  autoPersistBridge,
   brvCwd,
   readOnlyMemorySources = [],
+  autoRecallMemorySources = [{ label: "Primary memory", cwd: brvCwd, bridge: autoRecallBridge }],
 }: {
   config: ByteroverConfig;
   bridge: BrvBridge;
+  autoRecallBridge: BrvBridge;
+  autoPersistBridge: BrvBridge;
   brvCwd: string;
   readOnlyMemorySources?: Array<MemorySource>;
+  autoRecallMemorySources?: Array<MemorySource>;
 }): RuntimeState => ({
   config,
   bridge,
+  autoRecallBridge,
+  autoPersistBridge,
   brvCwd,
   readOnlyMemorySources,
-  recallCache: new LruCache<string, { contextBlock: string }>(config.maxRecallCacheSize),
+  autoRecallMemorySources,
+  recallCache: new LruCache<string, RecallCacheEntry>(config.maxRecallCacheSize),
   inFlightRecalls: new Map<string, Promise<void>>(),
   curatedTurns: new LruCache<string, string>(maxCuratedTurnCacheSize),
   inFlightCurations: new Map<string, { key: string; promise: Promise<void> }>(),

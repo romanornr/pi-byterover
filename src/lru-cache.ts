@@ -21,4 +21,8 @@ export class LruCache<K, V> {
     const oldestKey = this.#entries.keys().next().value;
     if (oldestKey !== undefined) this.#entries.delete(oldestKey);
   }
+
+  delete(key: K) {
+    return this.#entries.delete(key);
+  }
 }
