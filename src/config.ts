@@ -34,6 +34,10 @@ export const configDefaults = {
   autoPersist: true,
   manualTools: true,
   readOnly: false,
+  readOnlyMemories: {
+    enabled: false,
+    cwds: [] as Array<string>,
+  },
   contextTagName: "memory-context",
   recallPrompt:
     `Recall any relevant context that would help answer the latest user message.\n` +
@@ -69,6 +73,12 @@ export const ConfigSchema = z
     autoPersist: z.boolean().default(configDefaults.autoPersist),
     manualTools: z.boolean().default(configDefaults.manualTools),
     readOnly: z.boolean().default(configDefaults.readOnly),
+    readOnlyMemories: z
+      .object({
+        enabled: z.boolean().default(configDefaults.readOnlyMemories.enabled),
+        cwds: z.array(nonEmptyString()).default(configDefaults.readOnlyMemories.cwds),
+      })
+      .default(configDefaults.readOnlyMemories),
     contextTagName: nonEmptyString()
       .regex(/^[A-Za-z][A-Za-z0-9._-]*$/u)
       .default(configDefaults.contextTagName),

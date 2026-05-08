@@ -4,6 +4,7 @@ import type {
   ExtensionContext,
 } from "@earendil-works/pi-coding-agent";
 import type { ByteroverConfig } from "./config-loader.js";
+import { formatMemorySourceContent } from "./memory-sources.js";
 import { buildManualToolGuidance } from "./manual-guidance.js";
 import { extractPiSessionMessages, formatMessages, selectMessagesForRecall } from "./messages.js";
 import type { LogFunction, NotifyFunction } from "./notifications.js";
@@ -128,7 +129,7 @@ export const recallBeforeAgentStart = async ({
 }): Promise<BeforeAgentStartEventResult> => {
   if (state === undefined) return { systemPrompt: event.systemPrompt };
 
-  const { bridge, config, brvCwd } = state;
+  const { bridge, config, brvCwd, readOnlyMemorySources } = state;
   let systemPrompt = event.systemPrompt;
 
   if (config.manualTools) {
@@ -161,9 +162,21 @@ export const recallBeforeAgentStart = async ({
       latestPrompt: event.prompt,
       formattedMessages,
     });
-    const brvResult = await bridge.recall(query, { cwd: brvCwd });
+    const sources = [{ label: "Primary memory", cwd: brvCwd, bridge }, ...readOnlyMemorySources];
+    const includeSourceLabels = sources.length > 1;
+    const recalledSources = await Promise.all(
+      sources.map(async (source) => {
+        const brvResult = await source.bridge.recall(query, { cwd: source.cwd });
+        const content = prepareRecallContent(
+          stripEchoedRecallQuery(brvResult.content, query),
+          config.maxRecallContextChars,
+        );
+        if (!content) return "";
+        return formatMemorySourceContent(source, content, includeSourceLabels);
+      }),
+    );
     const content = prepareRecallContent(
-      stripEchoedRecallQuery(brvResult.content, query),
+      recalledSources.filter((source) => source.trim()).join("\n\n"),
       config.maxRecallContextChars,
     );
     if (!content) return { systemPrompt };

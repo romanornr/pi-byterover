@@ -60,6 +60,10 @@ Project configuration takes precedence over global configuration. On first Pi st
   "autoPersist": true,
   "manualTools": true,
   "readOnly": false,
+  "readOnlyMemories": {
+    "enabled": false,
+    "cwds": []
+  },
   "contextTagName": "memory-context",
   "recallPrompt": "Recall any relevant context that would help answer the latest user message.\nUse the recent conversation only to resolve references and intent.\nDo not restate the query in your findings.",
   "persistPrompt": "The following is a conversation between a user and an AI assistant.\nCurate only information with lasting value: facts, decisions, technical details, preferences, or notable outcomes.\nSkip trivial messages such as greetings, acknowledgments (\"ok\", \"thanks\", \"sure\", \"got it\"), one-word replies, anything with no substantive content.",
@@ -83,6 +87,7 @@ Configuration fields:
 - `autoPersist`: Automatically persist useful completed conversation turns after responses. Defaults to `true`.
 - `manualTools`: Register manual ByteRover tools. Defaults to `true`.
 - `readOnly`: Disable all writes to ByteRover while keeping recall/search available. Defaults to `false`. Useful for safely sharing an existing ByteRover workspace such as Hermes memory before allowing Pi to persist into it.
+- `readOnlyMemories`: Additional ByteRover workspaces to recall/search but never write. Defaults to disabled with no extra cwd values. Enable this to let Pi use its own writable memory while also reading memory from another agent, such as Hermes. Paths support `~` expansion.
 - `contextTagName`: XML-style tag name used for injected recall context. Defaults to `memory-context`.
 - `recallPrompt`: Instruction text prepended to recent conversation context for automatic recall. Automatic recall also includes the active ByteRover working directory, latest user request, and conservative relevance rules so unrelated memories are skipped. Returned recall is then checked by a lightweight quality gateway: insufficient recall is suppressed, partial recall is injected with a fallback policy, and sufficient recall is still marked as reference data rather than authority.
 - `persistPrompt`: Instruction text prepended to completed turns for automatic persistence curation.
@@ -94,6 +99,22 @@ Configuration fields:
 Numeric timeout and limit values must be positive integers. `brvPath`, `brvCwd`, `recallPrompt`, and `persistPrompt` must be non-empty strings when provided. `contextTagName` must be a simple XML-style tag name such as `memory-context`.
 
 Persist does not require ByteRover to be ready ahead of time. ByteRover bootstraps automatically when persist is called unless `readOnly` is enabled.
+
+### Reading memory from another agent
+
+Pi can keep its own writable ByteRover memory while reading extra workspaces in read-only mode. For example, to let Pi read Hermes memory without writing into it:
+
+```json
+{
+  "brvCwd": "~/.pi/agent/memory/byterover",
+  "readOnlyMemories": {
+    "enabled": true,
+    "cwds": ["~/.hermes/byterover"]
+  }
+}
+```
+
+Automatic recall and manual `brv_recall` / `brv_search` query both the primary memory and enabled read-only memories. `autoPersist` and `brv_persist` still write only to the primary `brvCwd` memory, and never to `readOnlyMemories`.
 
 ## Manual Tools
 

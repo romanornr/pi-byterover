@@ -2,6 +2,7 @@ import { BrvBridge, type BrvLogger } from "@byterover/brv-bridge";
 import { maxCuratedTurnCacheSize } from "./config.js";
 import type { ByteroverConfig } from "./config-loader.js";
 import { LruCache } from "./lru-cache.js";
+import type { MemorySource } from "./memory-sources.js";
 import type { LogFunction } from "./notifications.js";
 
 export type BridgeOverride = {
@@ -15,6 +16,7 @@ export type RuntimeState = {
   config: ByteroverConfig;
   bridge: BrvBridge;
   brvCwd: string;
+  readOnlyMemorySources: Array<MemorySource>;
   curatedTurns: LruCache<string, string>;
   inFlightCurations: Map<string, { key: string; promise: Promise<void> }>;
 };
@@ -54,14 +56,17 @@ export const createRuntimeState = ({
   config,
   bridge,
   brvCwd,
+  readOnlyMemorySources = [],
 }: {
   config: ByteroverConfig;
   bridge: BrvBridge;
   brvCwd: string;
+  readOnlyMemorySources?: Array<MemorySource>;
 }): RuntimeState => ({
   config,
   bridge,
   brvCwd,
+  readOnlyMemorySources,
   curatedTurns: new LruCache<string, string>(maxCuratedTurnCacheSize),
   inFlightCurations: new Map<string, { key: string; promise: Promise<void> }>(),
 });

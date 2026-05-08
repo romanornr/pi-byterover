@@ -38,6 +38,29 @@ describe("loadConfig", () => {
     });
   });
 
+  test("loads enabled read-only memory cwd list", async () => {
+    await withTempProjectAndHome(async (cwd, homeDir) => {
+      const projectConfigPath = join(cwd, ".pi", "byterover.json");
+      await writeJson(projectConfigPath, {
+        brvCwd: "~/.pi/agent/memory/byterover",
+        readOnlyMemories: {
+          enabled: true,
+          cwds: ["~/.hermes/byterover"],
+        },
+      });
+
+      const result = await loadConfig({ cwd, homeDir });
+
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.config.readOnlyMemories).toEqual({
+          enabled: true,
+          cwds: ["~/.hermes/byterover"],
+        });
+      }
+    });
+  });
+
   test("creates a global shared-memory config when requested and no config files exist", async () => {
     await withTempProjectAndHome(async (cwd, homeDir) => {
       const globalConfigPath = join(homeDir, ".pi", "agent", "byterover.json");

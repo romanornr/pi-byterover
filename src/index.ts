@@ -61,7 +61,13 @@ export default function byterover(pi: ExtensionAPI) {
 
     const createBridge = createBridgeFactory(config, brvCwd, logBrv);
     const bridge = createBridge();
-    runtime = createRuntimeState({ config, bridge, brvCwd });
+    const readOnlyMemorySources = config.readOnlyMemories.enabled
+      ? config.readOnlyMemories.cwds.map((configuredCwd, index) => {
+          const cwd = resolveBrvCwd(configuredCwd, ctx.cwd);
+          return { label: `Read-only memory ${index + 1}`, cwd, bridge: createBridge({ cwd }) };
+        })
+      : [];
+    runtime = createRuntimeState({ config, bridge, brvCwd, readOnlyMemorySources });
 
     if (config.manualTools) {
       registerManualTools({
@@ -70,6 +76,7 @@ export default function byterover(pi: ExtensionAPI) {
         bridge,
         createBridge,
         brvCwd,
+        readOnlyMemorySources,
         log: logBrv,
         notify: (type: NotifyType, message: string) => notifyBrv(ctx, type, message, config),
       } as Parameters<typeof registerManualTools>[0] & {

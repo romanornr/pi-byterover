@@ -1,5 +1,5 @@
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 import type {
   BeforeAgentStartEvent,
@@ -312,6 +312,45 @@ describe("byterover Pi extension", () => {
     expect(bridgeInstances[0]?.recall.mock.calls[0]?.[1]).toMatchObject({ cwd: brvCwd });
     expect(query).toContain(`Current project cwd:\n${ctx.cwd}`);
     expect(query).not.toContain(`Current project cwd:\n${brvCwd}`);
+  });
+
+  test("automatic recall also reads enabled read-only memory cwds with tilde expansion", async () => {
+    const { handlers, ctx } = await setup({
+      config: {
+        brvCwd: "~/.pi/agent/memory/byterover",
+        readOnlyMemories: {
+          enabled: true,
+          cwds: ["~/.hermes/byterover"],
+        },
+      },
+      branch: [messageEntry("u1", "user", "latest pi-byterover question")],
+    });
+    vi.mocked(bridgeInstances[0]!.recall).mockResolvedValue({
+      content: "pi-byterover primary memory",
+    });
+    vi.mocked(bridgeInstances[1]!.recall).mockResolvedValue({
+      content: "pi-byterover hermes memory",
+    });
+    const beforeAgentStart = getHandler(handlers, "before_agent_start");
+
+    const result = await beforeAgentStart(
+      beforeAgentEvent("base", "latest pi-byterover question"),
+      ctx,
+    );
+
+    expect(bridgeInstances).toHaveLength(2);
+    expect(bridgeInstances[0]?.recall.mock.calls[0]?.[1]).toMatchObject({
+      cwd: join(homedir(), ".pi", "agent", "memory", "byterover"),
+    });
+    expect(bridgeInstances[1]?.recall.mock.calls[0]?.[1]).toMatchObject({
+      cwd: join(homedir(), ".hermes", "byterover"),
+    });
+    expect((result as { systemPrompt: string }).systemPrompt).toContain(
+      "pi-byterover primary memory",
+    );
+    expect((result as { systemPrompt: string }).systemPrompt).toContain(
+      "pi-byterover hermes memory",
+    );
   });
 
   test("recalled context escapes closing memory tags before prompt injection", async () => {

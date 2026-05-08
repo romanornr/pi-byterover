@@ -2,6 +2,7 @@ import type { BrvBridge, SearchResultItem } from "@byterover/brv-bridge";
 import type { AgentToolResult, ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { type Static, Type } from "typebox";
 import type { ConfigSchema } from "./config.js";
+import { formatMemorySourceContent, type MemorySource } from "./memory-sources.js";
 import { stripEchoedRecallQuery } from "./recall.js";
 
 type Config = ReturnType<typeof ConfigSchema.parse>;
@@ -19,6 +20,7 @@ export type RegisterManualToolsInput = {
   config: Config;
   createBridge: (override?: BridgeOverride) => BrvBridge;
   brvCwd: string;
+  readOnlyMemorySources?: Array<MemorySource>;
 };
 
 const RecallParameters = Type.Object(
@@ -133,6 +135,7 @@ export const registerManualTools = ({
   config,
   createBridge,
   brvCwd,
+  readOnlyMemorySources = [],
 }: RegisterManualToolsInput) => {
   if (!config.manualTools) return;
 
@@ -147,15 +150,27 @@ export const registerManualTools = ({
       try {
         if (!(await bridge.ready())) return textResult("ByteRover bridge is not ready.");
 
-        const recallBridge =
-          params.timeoutMs === undefined
-            ? bridge
-            : createBridge({ cwd: brvCwd, recallTimeoutMs: params.timeoutMs });
-        const brvResult = await recallBridge.recall(query, {
-          cwd: brvCwd,
-          ...(signal === undefined ? {} : { signal }),
-        });
-        const content = stripEchoedRecallQuery(brvResult.content, query);
+        const sources = [
+          { label: "Primary memory", cwd: brvCwd, bridge },
+          ...readOnlyMemorySources,
+        ];
+        const includeSourceLabels = sources.length > 1;
+        const recalledSources = await Promise.all(
+          sources.map(async (source) => {
+            const recallBridge =
+              params.timeoutMs === undefined
+                ? source.bridge
+                : createBridge({ cwd: source.cwd, recallTimeoutMs: params.timeoutMs });
+            const brvResult = await recallBridge.recall(query, {
+              cwd: source.cwd,
+              ...(signal === undefined ? {} : { signal }),
+            });
+            const content = stripEchoedRecallQuery(brvResult.content, query);
+            if (!content) return "";
+            return formatMemorySourceContent(source, content, includeSourceLabels);
+          }),
+        );
+        const content = recalledSources.filter((source) => source.trim()).join("\n\n");
         return textResult(content || "No relevant ByteRover context found.");
       } catch (error) {
         return textResult(`ByteRover recall failed: ${errorMessage(error)}`);
@@ -174,18 +189,32 @@ export const registerManualTools = ({
       try {
         if (!(await bridge.ready())) return textResult("ByteRover bridge is not ready.");
 
-        const searchOptions = {
-          cwd: brvCwd,
-          ...(params.limit === undefined ? {} : { limit: params.limit }),
-          ...(params.scope === undefined ? {} : { scope: params.scope.trim() }),
-        };
-        const searchBridge =
-          params.timeoutMs === undefined
-            ? bridge
-            : createBridge({ cwd: brvCwd, searchTimeoutMs: params.timeoutMs });
-        const brvResult = await searchBridge.search(query, searchOptions);
+        const sources = [
+          { label: "Primary memory", cwd: brvCwd, bridge },
+          ...readOnlyMemorySources,
+        ];
+        const searchOutputs = await Promise.all(
+          sources.map(async (source) => {
+            const searchOptions = {
+              cwd: source.cwd,
+              ...(params.limit === undefined ? {} : { limit: params.limit }),
+              ...(params.scope === undefined ? {} : { scope: params.scope.trim() }),
+            };
+            const searchBridge =
+              params.timeoutMs === undefined
+                ? source.bridge
+                : createBridge({ cwd: source.cwd, searchTimeoutMs: params.timeoutMs });
+            const brvResult = await searchBridge.search(query, searchOptions);
+            return formatMemorySourceContent(
+              source,
+              formatSearchResults(brvResult.results, brvResult.totalFound, brvResult.message),
+              true,
+            );
+          }),
+        );
         return textResult(
-          formatSearchResults(brvResult.results, brvResult.totalFound, brvResult.message),
+          searchOutputs.filter((source) => source.trim()).join("\n\n") ||
+            "No ByteRover search results found.",
         );
       } catch (error) {
         return textResult(`ByteRover search failed: ${errorMessage(error)}`);

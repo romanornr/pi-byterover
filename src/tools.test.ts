@@ -40,7 +40,15 @@ const createRegistry = () => {
 
 const createContext = (cwd = "/repo") => ({ cwd }) as ExtensionContext;
 
-const register = (overrides: Partial<MockBridge> = {}) => {
+const register = ({
+  overrides = {},
+  config = {},
+  readOnlyMemorySources = [],
+}: {
+  overrides?: Partial<MockBridge>;
+  config?: Record<string, unknown>;
+  readOnlyMemorySources?: Array<{ label: string; cwd: string; bridge: BrvBridge }>;
+} = {}) => {
   const { pi, tools } = createRegistry();
   const bridge = createMockBridge(overrides);
   const overrideBridge = createMockBridge();
@@ -49,9 +57,10 @@ const register = (overrides: Partial<MockBridge> = {}) => {
   registerManualTools({
     pi,
     bridge: bridge as BrvBridge,
-    config: ConfigSchema.parse(undefined),
+    config: ConfigSchema.parse(config),
     createBridge,
     brvCwd: "/repo",
+    readOnlyMemorySources,
   });
 
   return { pi, tools, bridge, overrideBridge, createBridge };
@@ -111,7 +120,7 @@ describe("registerManualTools", () => {
   });
 
   test("recall checks readiness and returns a not ready message", async () => {
-    const { tools, bridge } = register({ ready: vi.fn(async () => false) });
+    const { tools, bridge } = register({ overrides: { ready: vi.fn(async () => false) } });
     const recall = tools.get("brv_recall");
 
     const result = await recall?.execute(
@@ -188,9 +197,33 @@ describe("registerManualTools", () => {
     expect(text(result as never)).toContain("Found 1 ByteRover result.");
   });
 
+  test("manual recall reads primary and read-only memories", async () => {
+    const hermesBridge = createMockBridge({
+      recall: vi.fn(async () => ({ content: "hermes remembered context" })),
+    }) as BrvBridge;
+    const { tools, bridge } = register({
+      readOnlyMemorySources: [{ label: "Hermes memory", cwd: "/hermes", bridge: hermesBridge }],
+    });
+    vi.mocked(bridge.recall).mockResolvedValue({ content: "primary remembered context" });
+    const recall = tools.get("brv_recall");
+
+    const result = await recall?.execute(
+      "call-1",
+      { query: "topic" },
+      undefined,
+      undefined,
+      createContext("/work"),
+    );
+
+    expect(bridge.recall).toHaveBeenCalledWith("topic", { cwd: "/repo" });
+    expect(hermesBridge.recall).toHaveBeenCalledWith("topic", { cwd: "/hermes" });
+    expect(text(result as never)).toContain("primary remembered context");
+    expect(text(result as never)).toContain("hermes remembered context");
+  });
+
   test("persist does not check readiness and detaches writes", async () => {
     const { tools, bridge, overrideBridge, createBridge } = register({
-      ready: vi.fn(async () => false),
+      overrides: { ready: vi.fn(async () => false) },
     });
     vi.mocked(overrideBridge.persist).mockResolvedValue({
       status: "queued",
