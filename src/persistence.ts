@@ -49,7 +49,6 @@ export const persistCuratedMessages = async ({
   const inFlightCuration = inFlightCurations.get(dedupeKey);
   if (inFlightCuration?.key === key) {
     log("debug", `Skipping in-flight ByteRover curation for ${dedupeKey}`);
-    await inFlightCuration.promise;
     return;
   }
 
@@ -74,13 +73,11 @@ export const persistCuratedMessages = async ({
 
   const promise = persistCuration();
   inFlightCurations.set(dedupeKey, { key, promise });
-  try {
-    await promise;
-  } finally {
+  promise.finally(() => {
     if (inFlightCurations.get(dedupeKey)?.promise === promise) {
       inFlightCurations.delete(dedupeKey);
     }
-  }
+  });
 };
 
 /**

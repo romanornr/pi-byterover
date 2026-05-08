@@ -51,6 +51,8 @@ export const configDefaults = {
   maxRecallChars: 4096,
   maxRecallContextChars: 8192,
   maxCompactFlushChars: 8192,
+  minAutoRecallPromptChars: 10,
+  maxRecallCacheSize: 100,
 };
 
 export const maxCuratedTurnCacheSize = 500;
@@ -88,6 +90,8 @@ export const ConfigSchema = z
     maxRecallChars: positiveInteger().default(configDefaults.maxRecallChars),
     maxRecallContextChars: positiveInteger().default(configDefaults.maxRecallContextChars),
     maxCompactFlushChars: positiveInteger().default(configDefaults.maxCompactFlushChars),
+    minAutoRecallPromptChars: positiveInteger().default(configDefaults.minAutoRecallPromptChars),
+    maxRecallCacheSize: positiveInteger().default(configDefaults.maxRecallCacheSize),
   })
   .optional()
   .default(configDefaults);

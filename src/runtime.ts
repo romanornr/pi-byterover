@@ -17,6 +17,8 @@ export type RuntimeState = {
   bridge: BrvBridge;
   brvCwd: string;
   readOnlyMemorySources: Array<MemorySource>;
+  recallCache: LruCache<string, { contextBlock: string }>;
+  inFlightRecalls: Map<string, Promise<void>>;
   curatedTurns: LruCache<string, string>;
   inFlightCurations: Map<string, { key: string; promise: Promise<void> }>;
 };
@@ -67,6 +69,8 @@ export const createRuntimeState = ({
   bridge,
   brvCwd,
   readOnlyMemorySources,
+  recallCache: new LruCache<string, { contextBlock: string }>(config.maxRecallCacheSize),
+  inFlightRecalls: new Map<string, Promise<void>>(),
   curatedTurns: new LruCache<string, string>(maxCuratedTurnCacheSize),
   inFlightCurations: new Map<string, { key: string; promise: Promise<void> }>(),
 });
