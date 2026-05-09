@@ -7,6 +7,13 @@ import type {
   SearchResult,
 } from "@byterover/brv-bridge";
 
+/**
+ * Minimal transport contract used by the Pi extension.
+ *
+ * Keep lifecycle/memory code typed against this shape instead of the concrete
+ * `@byterover/brv-bridge` class so a future persistent transport can be swapped
+ * in without changing recall, search, persistence, or manual-tool policy.
+ */
 export type ByteRoverBridgeLike = {
   ready(): Promise<boolean>;
   recall(query: string, options?: RecallOptions): Promise<RecallResult>;
@@ -15,6 +22,7 @@ export type ByteRoverBridgeLike = {
   shutdown?(): Promise<void>;
 };
 
+/** Per-bridge overrides used for scoped memories and per-call manual timeouts. */
 export type BridgeOverride = {
   cwd?: string;
   searchTimeoutMs?: number;
@@ -22,4 +30,5 @@ export type BridgeOverride = {
   persistTimeoutMs?: number;
 };
 
+/** Builds a bridge instance with shared extension config plus optional overrides. */
 export type ByteRoverBridgeFactory = (override?: BridgeOverride) => ByteRoverBridgeLike;
