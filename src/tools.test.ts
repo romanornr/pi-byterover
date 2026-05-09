@@ -1,4 +1,4 @@
-import type { BrvBridge, SearchResultItem } from "@byterover/brv-bridge";
+import type { SearchResultItem } from "@byterover/brv-bridge";
 import type {
   ExtensionAPI,
   ExtensionContext,
@@ -6,10 +6,11 @@ import type {
 } from "@earendil-works/pi-coding-agent";
 import { Value } from "typebox/value";
 import { describe, expect, test, vi } from "vitest";
+import type { ByteRoverBridgeLike } from "./bridges/types.js";
 import { ConfigSchema } from "./config.js";
 import { formatSearchResults, registerManualTools } from "./tools.js";
 
-type MockBridge = Pick<BrvBridge, "ready" | "recall" | "search" | "persist">;
+type MockBridge = Pick<ByteRoverBridgeLike, "ready" | "recall" | "search" | "persist">;
 
 const text = (result: { content: Array<{ type: "text"; text: string }> }) =>
   result.content[0]?.text;
@@ -47,16 +48,16 @@ const register = ({
 }: {
   overrides?: Partial<MockBridge>;
   config?: Record<string, unknown>;
-  readOnlyMemorySources?: Array<{ label: string; cwd: string; bridge: BrvBridge }>;
+  readOnlyMemorySources?: Array<{ label: string; cwd: string; bridge: ByteRoverBridgeLike }>;
 } = {}) => {
   const { pi, tools } = createRegistry();
   const bridge = createMockBridge(overrides);
   const overrideBridge = createMockBridge();
-  const createBridge = vi.fn(() => overrideBridge as BrvBridge);
+  const createBridge = vi.fn(() => overrideBridge as ByteRoverBridgeLike);
 
   registerManualTools({
     pi,
-    bridge: bridge as BrvBridge,
+    bridge: bridge as ByteRoverBridgeLike,
     config: ConfigSchema.parse(config),
     createBridge,
     brvCwd: "/repo",
@@ -200,7 +201,7 @@ describe("registerManualTools", () => {
   test("manual recall reads primary and read-only memories", async () => {
     const hermesBridge = createMockBridge({
       recall: vi.fn(async () => ({ content: "hermes remembered context" })),
-    }) as BrvBridge;
+    }) as ByteRoverBridgeLike;
     const { tools, bridge } = register({
       readOnlyMemorySources: [{ label: "Hermes memory", cwd: "/hermes", bridge: hermesBridge }],
     });

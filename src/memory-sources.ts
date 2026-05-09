@@ -1,9 +1,9 @@
-import type { BrvBridge } from "@byterover/brv-bridge";
+import type { ByteRoverBridgeLike } from "./bridges/types.js";
 
 export type MemorySource = {
   label: string;
   cwd: string;
-  bridge: BrvBridge;
+  bridge: ByteRoverBridgeLike;
 };
 
 export const formatMemorySource = (label: string, cwd: string, content: string) =>

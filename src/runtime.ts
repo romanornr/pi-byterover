@@ -1,4 +1,10 @@
-import { BrvBridge, type BrvLogger } from "@byterover/brv-bridge";
+import type { BrvLogger } from "@byterover/brv-bridge";
+import { CliByteRoverBridge } from "./bridges/cli-bridge.js";
+import type {
+  BridgeOverride,
+  ByteRoverBridgeFactory,
+  ByteRoverBridgeLike,
+} from "./bridges/types.js";
 import { maxCuratedTurnCacheSize } from "./config.js";
 import type { ByteroverConfig } from "./config-loader.js";
 import { LruCache } from "./lru-cache.js";
@@ -6,18 +12,11 @@ import type { MemorySource } from "./memory-sources.js";
 import type { LogFunction } from "./notifications.js";
 import type { RecallCacheEntry } from "./recall-cache.js";
 
-export type BridgeOverride = {
-  cwd?: string;
-  searchTimeoutMs?: number;
-  recallTimeoutMs?: number;
-  persistTimeoutMs?: number;
-};
-
 export type RuntimeState = {
   config: ByteroverConfig;
-  bridge: BrvBridge;
-  autoRecallBridge: BrvBridge;
-  autoPersistBridge: BrvBridge;
+  bridge: ByteRoverBridgeLike;
+  autoRecallBridge: ByteRoverBridgeLike;
+  autoPersistBridge: ByteRoverBridgeLike;
   brvCwd: string;
   readOnlyMemorySources: Array<MemorySource>;
   autoRecallMemorySources: Array<MemorySource>;
@@ -36,7 +35,7 @@ export const createBridgeFactory = (
   config: ByteroverConfig,
   defaultCwd: string,
   log: LogFunction,
-) => {
+): ByteRoverBridgeFactory => {
   const brvLogger: BrvLogger = {
     debug: (message) => log("debug", message),
     info: (message) => log("info", message),
@@ -45,7 +44,7 @@ export const createBridgeFactory = (
   };
 
   return (override?: BridgeOverride) =>
-    new BrvBridge({
+    new CliByteRoverBridge({
       brvPath: config.brvPath,
       searchTimeoutMs: override?.searchTimeoutMs ?? config.searchTimeoutMs,
       recallTimeoutMs: override?.recallTimeoutMs ?? config.recallTimeoutMs,
@@ -69,9 +68,9 @@ export const createRuntimeState = ({
   autoRecallMemorySources = [{ label: "Primary memory", cwd: brvCwd, bridge: autoRecallBridge }],
 }: {
   config: ByteroverConfig;
-  bridge: BrvBridge;
-  autoRecallBridge: BrvBridge;
-  autoPersistBridge: BrvBridge;
+  bridge: ByteRoverBridgeLike;
+  autoRecallBridge: ByteRoverBridgeLike;
+  autoPersistBridge: ByteRoverBridgeLike;
   brvCwd: string;
   readOnlyMemorySources?: Array<MemorySource>;
   autoRecallMemorySources?: Array<MemorySource>;

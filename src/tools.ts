@@ -1,24 +1,18 @@
-import type { BrvBridge, SearchResultItem } from "@byterover/brv-bridge";
+import type { SearchResultItem } from "@byterover/brv-bridge";
 import type { AgentToolResult, ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { type Static, Type } from "typebox";
+import type { ByteRoverBridgeFactory, ByteRoverBridgeLike } from "./bridges/types.js";
 import type { ConfigSchema } from "./config.js";
 import { formatMemorySourceContent, type MemorySource } from "./memory-sources.js";
 import { stripEchoedRecallQuery } from "./recall.js";
 
 type Config = ReturnType<typeof ConfigSchema.parse>;
 
-type BridgeOverride = {
-  cwd?: string;
-  searchTimeoutMs?: number;
-  recallTimeoutMs?: number;
-  persistTimeoutMs?: number;
-};
-
 export type RegisterManualToolsInput = {
   pi: ExtensionAPI;
-  bridge: BrvBridge;
+  bridge: ByteRoverBridgeLike;
   config: Config;
-  createBridge: (override?: BridgeOverride) => BrvBridge;
+  createBridge: ByteRoverBridgeFactory;
   brvCwd: string;
   readOnlyMemorySources?: Array<MemorySource>;
 };
